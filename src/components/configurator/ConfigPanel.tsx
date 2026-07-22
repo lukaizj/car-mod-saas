@@ -1,0 +1,226 @@
+"use client";
+
+import clsx from "clsx";
+import {
+  BODYKITS,
+  CALIPER_COLORS,
+  COVERAGE_OPTIONS,
+  LIVERIES,
+  PAINT_COLORS,
+  SPOILERS,
+  WHEELS,
+  WHEEL_COLORS,
+} from "@/lib/catalog";
+import { useConfigStore } from "@/store/configStore";
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function ColorSwatches({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: { id: string; name: string; hex: string }[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {options.map((color) => (
+        <button
+          key={color.id}
+          type="button"
+          title={color.name}
+          aria-label={color.name}
+          aria-pressed={selected === color.hex}
+          onClick={() => onSelect(color.id)}
+          className={clsx(
+            "aspect-square rounded-xl border-2 transition-transform hover:scale-105",
+            selected === color.hex
+              ? "border-white ring-2 ring-white/30"
+              : "border-transparent",
+          )}
+          style={{ backgroundColor: color.hex }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function OptionButtons({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: { id: string; name: string; price: number; description?: string }[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => onSelect(opt.id)}
+          className={clsx(
+            "w-full rounded-xl border px-4 py-3 text-left transition-colors",
+            selected === opt.id
+              ? "border-blue-500 bg-blue-500/10"
+              : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
+          )}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium text-sm">{opt.name}</span>
+            <span className="text-xs text-zinc-400">
+              {opt.price === 0 ? "含" : `+¥${opt.price.toLocaleString()}`}
+            </span>
+          </div>
+          {opt.description && (
+            <p className="mt-1 text-xs text-zinc-500">{opt.description}</p>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function ConfigPanel() {
+  const {
+    config,
+    setPaintColor,
+    setCoverage,
+    setLivery,
+    setWheelColor,
+    setCaliperColor,
+    setWheels,
+    setSpoiler,
+    setBodykit,
+  } = useConfigStore();
+  const coverage = COVERAGE_OPTIONS.find(
+    (option) => option.id === config.paint.coverage,
+  );
+
+  return (
+    <div className="flex flex-col gap-6 overflow-y-auto pr-1">
+      <Section title="车身颜色 / 材质">
+        <p className="text-xs text-zinc-500">
+          当前：{config.paint.colorName}
+          {config.paint.type === "wrap" ? "（贴膜）" : ""}
+        </p>
+        <ColorSwatches
+          options={PAINT_COLORS}
+          selected={config.paint.color}
+          onSelect={setPaintColor}
+        />
+        <p className="text-xs font-medium text-zinc-400">施工报价范围</p>
+        <div className="flex gap-2">
+          {COVERAGE_OPTIONS.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setCoverage(c.id)}
+              className={clsx(
+                "flex-1 rounded-lg border py-2 text-xs font-medium",
+                config.paint.coverage === c.id
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-zinc-700 hover:border-zinc-500",
+              )}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        <p className="rounded-lg bg-zinc-800/70 px-3 py-2 text-xs leading-relaxed text-zinc-400">
+          {config.paint.coverage === "full"
+            ? "全车颜色与材质已在 3D 中实时预览。"
+            : `${coverage?.name ?? "局部"}当前仅影响报价；现有模型未拆分对应车身区域，3D 暂以全车效果示意。`}
+        </p>
+      </Section>
+
+      <Section title="贴膜 / 拉花 · 实时预览">
+        <div className="grid grid-cols-2 gap-2">
+          {LIVERIES.map((livery) => (
+            <button
+              key={livery.id}
+              type="button"
+              onClick={() => setLivery(livery.id)}
+              className={clsx(
+                "rounded-xl border px-3 py-3 text-left transition-colors",
+                config.appearance.liveryId === livery.id
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
+              )}
+            >
+              <span className="block text-sm font-medium">{livery.name}</span>
+              <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+                {livery.description}
+              </span>
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="轮毂">
+        <p className="text-xs text-zinc-500">
+          颜色实时预览：{config.appearance.wheelColorName}
+        </p>
+        <ColorSwatches
+          options={WHEEL_COLORS}
+          selected={config.appearance.wheelColor}
+          onSelect={setWheelColor}
+        />
+        <OptionButtons
+          options={WHEELS}
+          selected={config.mods.wheelsId}
+          onSelect={setWheels}
+        />
+        <p className="text-xs leading-relaxed text-zinc-500">
+          当前仅轮毂颜色实时呈现；轮毂款式用于报价，待独立轮毂 GLB 资产接入后切换模型。
+        </p>
+      </Section>
+
+      <Section title="卡钳颜色 · 实时预览">
+        <p className="text-xs text-zinc-500">
+          当前：{config.appearance.caliperColorName}
+        </p>
+        <ColorSwatches
+          options={CALIPER_COLORS}
+          selected={config.appearance.caliperColor}
+          onSelect={setCaliperColor}
+        />
+      </Section>
+
+      <Section title="尾翼">
+        <OptionButtons
+          options={SPOILERS}
+          selected={config.mods.spoilerId}
+          onSelect={setSpoiler}
+        />
+      </Section>
+
+      <Section title="包围">
+        <OptionButtons
+          options={BODYKITS}
+          selected={config.mods.bodykitId}
+          onSelect={setBodykit}
+        />
+      </Section>
+    </div>
+  );
+}

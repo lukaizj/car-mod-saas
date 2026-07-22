@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Shop {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  name         String
+  address      String
+  phone        String
+  openHours    String        @default("09:00-18:00")
+  createdAt    DateTime      @default(now())
+  quotes       Quote[]
+  appointments Appointment[]
+}
+
+model Quote {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id])
+  config    String
+  total     Float
+  breakdown String
+  customer  String?
+  phone     String?
+  status    String   @default("draft")
+  createdAt DateTime @default(now())
+  appointment Appointment?
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id])
+  quoteId   String   @unique
+  quote     Quote    @relation(fields: [quoteId], references: [id])
+  date      String
+  timeSlot  String
+  customer  String
+  phone     String
+  note      String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+}

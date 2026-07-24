@@ -3,21 +3,88 @@ import type {
   ColorOption,
   FinishColorOption,
   LiveryOption,
+  VehicleDefinition,
 } from "./types";
 
-export const DEFAULT_VEHICLE = {
-  id: "bmw-m4-competition",
-  name: "BMW M4 Competition",
-  modelPath: "/models/bmw-m4.web.glb",
-  materialNames: {
-    body: "Meshesbody151Mtl",
-    bodyPaint: ["Mesheszx1Mtl", "Meshesbody151Mtl"],
-    livery: "Mesheslivery1Mtl",
-    windows: "Mesheswindows1Mtl",
-    wheels: ["Meshesm8rim1Mtl", "Meshesm8rim0011Mtl"],
-    caliper: "Caliper1Mtl",
+export const VEHICLES: VehicleDefinition[] = [
+  {
+    id: "bmw-m4-competition",
+    name: "BMW M4 Competition",
+    modelPath: "/models/bmw-m4.web.glb",
+    sourceUrl:
+      "https://sketchfab.com/3d-models/bmw-m4-competition-m-package-5c0a2dafb1ad408d9fc9eeef9aee531b",
+    sourceLabel: "3D 模型 · CC BY 4.0",
+    capabilities: { livery: true },
+    materialNames: {
+      bodyPaint: ["Mesheszx1Mtl", "Meshesbody151Mtl"],
+      bodyPaintNodes: ["Object_24", "Object_30"],
+      livery: "Mesheslivery1Mtl",
+      windows: "Mesheswindows1Mtl",
+      wheels: ["Meshesm8rim1Mtl", "Meshesm8rim0011Mtl"],
+      caliper: "Caliper1Mtl",
+    },
   },
-};
+  {
+    id: "audi-rs6-avant",
+    name: "Audi RS6 Avant",
+    modelPath: "/models/audi-rs6.web.glb",
+    sourceUrl: "https://github.com/armis-kan/perfekt-app",
+    sourceLabel: "3D 模型 · 非商用素材",
+    capabilities: { livery: false },
+    materialNames: {
+      bodyPaint: ["CARI_PAINT"],
+      windows: "Glass",
+      wheels: ["RIM_DARK", "RIM_BRIGHT"],
+      wheelNodes: [
+        "Object_296",
+        "Object_300",
+        "Object_302",
+        "Object_304",
+        "Object_306",
+        "Object_308",
+        "Object_312",
+        "Object_313",
+        "Object_315",
+        "Object_317",
+        "Object_321",
+        "Object_323",
+        "Object_325",
+        "Object_327",
+        "Object_337",
+        "Object_338",
+        "Object_340",
+        "Object_342",
+      ],
+      caliper: "Brake_Kit",
+    },
+  },
+  {
+    id: "tesla-model3",
+    name: "Tesla Model 3",
+    modelPath: "/models/tesla-model3.web.glb",
+    sourceUrl: "https://github.com/varrff/Model3ThreeJsExpo",
+    sourceLabel: "3D 模型 · CC BY 4.0",
+    capabilities: { livery: false },
+    materialNames: {
+      bodyPaint: ["primary.003", "primary.005", "primary.006", "primary.007"],
+      windows: "glass.002",
+      wheels: [
+        "wheels.005",
+        "wheels.007",
+        "wheels.008",
+        "wheels.009",
+        "wheels.010",
+        "wheels.011",
+      ],
+    },
+  },
+];
+
+export const DEFAULT_VEHICLE = VEHICLES[0];
+
+export function getVehicle(vehicleId: string) {
+  return VEHICLES.find((vehicle) => vehicle.id === vehicleId) ?? DEFAULT_VEHICLE;
+}
 
 export const PAINT_COLORS: ColorOption[] = [
   { id: "alpine-white", name: "Alpine White", hex: "#F2F2F2", paintType: "solid", priceMultiplier: 1 },
@@ -76,7 +143,7 @@ export const CALIPER_COLORS: FinishColorOption[] = [
 ];
 
 export const WHEELS: CatalogOption[] = [
-  { id: "stock", name: "原厂轮毂", price: 0, description: "M4 原厂双五辐" },
+  { id: "stock", name: "原厂轮毂", price: 0, description: "当前车型原厂轮毂" },
   { id: "bbs-fi-r", name: "BBS FI-R", price: 28000, description: "20\" 锻造竞技轮毂" },
   { id: "hre-p101", name: "HRE P101", price: 42000, description: "21\" 单片锻造" },
   { id: "adv1-005", name: "ADV.1 005", price: 35000, description: "20\" 多辐条" },

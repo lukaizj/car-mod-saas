@@ -1,13 +1,16 @@
 "use client";
 
 import clsx from "clsx";
+import CustomModelUpload from "./CustomModelUpload";
 import {
   BODYKITS,
   CALIPER_COLORS,
   COVERAGE_OPTIONS,
+  getVehicle,
   LIVERIES,
   PAINT_COLORS,
   SPOILERS,
+  VEHICLES,
   WHEELS,
   WHEEL_COLORS,
 } from "@/lib/catalog";
@@ -103,6 +106,7 @@ function OptionButtons({
 export default function ConfigPanel() {
   const {
     config,
+    setVehicle,
     setPaintColor,
     setCoverage,
     setLivery,
@@ -115,9 +119,53 @@ export default function ConfigPanel() {
   const coverage = COVERAGE_OPTIONS.find(
     (option) => option.id === config.paint.coverage,
   );
+  const customVehicle = useConfigStore((state) => state.customVehicle);
+  const vehicle =
+    customVehicle?.id === config.vehicleId
+      ? customVehicle
+      : getVehicle(config.vehicleId);
 
   return (
     <div className="flex flex-col gap-6 overflow-y-auto pr-1">
+      <Section title="选择车型">
+        <div className="grid grid-cols-2 gap-2">
+          {VEHICLES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setVehicle(option.id)}
+              className={clsx(
+                "rounded-xl border px-3 py-3 text-left transition-colors",
+                config.vehicleId === option.id
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
+              )}
+            >
+              <span className="block text-sm font-medium">{option.name}</span>
+            </button>
+          ))}
+          {customVehicle && (
+            <button
+              type="button"
+              onClick={() => setVehicle(customVehicle.id)}
+              className={clsx(
+                "rounded-xl border px-3 py-3 text-left transition-colors",
+                config.vehicleId === customVehicle.id
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
+              )}
+            >
+              <span className="block text-sm font-medium">
+                {customVehicle.name}
+              </span>
+              <span className="mt-1 block text-xs text-zinc-500">本地上传</span>
+            </button>
+          )}
+        </div>
+      </Section>
+
+      <CustomModelUpload />
+
       <Section title="车身颜色 / 材质">
         <p className="text-xs text-zinc-500">
           当前：{config.paint.colorName}
@@ -154,26 +202,32 @@ export default function ConfigPanel() {
       </Section>
 
       <Section title="贴膜 / 拉花 · 实时预览">
-        <div className="grid grid-cols-2 gap-2">
-          {LIVERIES.map((livery) => (
-            <button
-              key={livery.id}
-              type="button"
-              onClick={() => setLivery(livery.id)}
-              className={clsx(
-                "rounded-xl border px-3 py-3 text-left transition-colors",
-                config.appearance.liveryId === livery.id
-                  ? "border-blue-500 bg-blue-500/10"
-                  : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
-              )}
-            >
-              <span className="block text-sm font-medium">{livery.name}</span>
-              <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
-                {livery.description}
-              </span>
-            </button>
-          ))}
-        </div>
+        {vehicle.capabilities.livery ? (
+          <div className="grid grid-cols-2 gap-2">
+            {LIVERIES.map((livery) => (
+              <button
+                key={livery.id}
+                type="button"
+                onClick={() => setLivery(livery.id)}
+                className={clsx(
+                  "rounded-xl border px-3 py-3 text-left transition-colors",
+                  config.appearance.liveryId === livery.id
+                    ? "border-blue-500 bg-blue-500/10"
+                    : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
+                )}
+              >
+                <span className="block text-sm font-medium">{livery.name}</span>
+                <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+                  {livery.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg bg-zinc-800/70 px-3 py-2 text-xs leading-relaxed text-zinc-400">
+            当前车型暂未提供独立拉花层，仅展示纯色车漆。
+          </p>
+        )}
       </Section>
 
       <Section title="轮毂">

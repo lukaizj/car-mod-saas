@@ -13,6 +13,24 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: "/models/audi-rs6.web.glb",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
+        source: "/models/uploads/:path*.glb",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, immutable",
+          },
+        ],
+      },
     ];
   },
 };

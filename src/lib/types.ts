@@ -75,6 +75,36 @@ export interface LiveryOption {
   tint: string;
 }
 
+export interface VehicleMaterialNames {
+  bodyPaint: string[];
+  bodyPaintNodes?: string[];
+  livery?: string;
+  windows?: string;
+  wheels: string[];
+  wheelNodes?: string[];
+  caliper?: string;
+}
+
+export interface VehicleDefinition {
+  id: string;
+  name: string;
+  isCustom?: boolean;
+  modelPath: string;
+  sourceUrl: string;
+  sourceLabel: string;
+  capabilities: {
+    livery: boolean;
+  };
+  materialNames: VehicleMaterialNames;
+}
+
+export interface CustomVehicleDefinition extends VehicleDefinition {
+  isCustom: true;
+  fileName: string;
+  fileSize: number;
+  availableMaterials: string[];
+}
+
 export interface ShopInfo {
   id: string;
   slug: string;

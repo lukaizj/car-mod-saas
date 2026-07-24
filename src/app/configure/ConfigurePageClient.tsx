@@ -5,6 +5,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import CarConfigurator from "@/components/configurator/CarConfigurator";
 import ConfigPanel from "@/components/configurator/ConfigPanel";
 import ConfiguratorActions from "@/components/configurator/ConfiguratorActions";
+import { getVehicle } from "@/lib/catalog";
 import { calculateQuote } from "@/lib/pricing";
 import { useConfigStore } from "@/store/configStore";
 
@@ -38,6 +39,14 @@ function ModelBootPlaceholder() {
 
 export default function ConfigurePageClient() {
   const config = useConfigStore((s) => s.config);
+  const customVehicle = useConfigStore((s) => s.customVehicle);
+  const setCustomMaterialCatalog = useConfigStore(
+    (s) => s.setCustomMaterialCatalog,
+  );
+  const vehicle =
+    customVehicle?.id === config.vehicleId
+      ? customVehicle
+      : getVehicle(config.vehicleId);
   const quote = useMemo(() => calculateQuote(config), [config]);
   const isClient = useSyncExternalStore(subscribe, () => true, () => false);
 
@@ -51,14 +60,18 @@ export default function ConfigurePageClient() {
           <h1 className="text-2xl font-bold">{config.vehicleName}</h1>
         </div>
         <div className="flex items-center gap-4 text-sm">
-          <a
-            href="https://sketchfab.com/3d-models/bmw-m4-competition-m-package-5c0a2dafb1ad408d9fc9eeef9aee531b"
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-zinc-500 hover:text-zinc-300"
-          >
-            3D 模型 · CC BY 4.0
-          </a>
+          {vehicle.sourceUrl ? (
+            <a
+              href={vehicle.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-zinc-500 hover:text-zinc-300"
+            >
+              {vehicle.sourceLabel}
+            </a>
+          ) : (
+            <span className="text-xs text-zinc-500">{vehicle.sourceLabel}</span>
+          )}
           <Link href="/dashboard" className="text-zinc-400 hover:text-white">
             门店后台 →
           </Link>
@@ -69,11 +82,15 @@ export default function ConfigurePageClient() {
         <div className="relative h-[58vh] min-h-[420px] max-h-[720px] self-start lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:min-h-[560px] lg:max-h-[760px]">
           {isClient ? (
             <CarConfigurator
+              vehicle={vehicle}
               color={config.paint.color}
               paintType={config.paint.type}
               liveryId={config.appearance.liveryId}
               wheelColor={config.appearance.wheelColor}
               caliperColor={config.appearance.caliperColor}
+              onMaterialsDiscovered={
+                vehicle.isCustom ? setCustomMaterialCatalog : undefined
+              }
             />
           ) : (
             <ModelBootPlaceholder />

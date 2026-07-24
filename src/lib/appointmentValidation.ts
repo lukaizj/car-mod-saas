@@ -2,11 +2,11 @@ import {
   BODYKITS,
   CALIPER_COLORS,
   COVERAGE_OPTIONS,
-  DEFAULT_VEHICLE,
   LIVERIES,
   PAINT_COLORS,
   SPOILERS,
   TIME_SLOTS,
+  VEHICLES,
   WHEELS,
   WHEEL_COLORS,
 } from "./catalog";
@@ -71,9 +71,20 @@ function normalizeConfig(value: unknown): ValidationResult<CarConfig> {
     return { success: false, error: "车辆配置格式无效" };
   }
 
-  if (value.vehicleId !== DEFAULT_VEHICLE.id) {
+  const catalogVehicle = VEHICLES.find((option) => option.id === value.vehicleId);
+  const customVehicle =
+    typeof value.vehicleId === "string" &&
+    value.vehicleId.startsWith("custom-") &&
+    typeof value.vehicleName === "string" &&
+    value.vehicleName.trim().length > 0 &&
+    value.vehicleName.trim().length <= 80;
+  if (!catalogVehicle && !customVehicle) {
     return { success: false, error: "不支持的车型" };
   }
+  const vehicle = catalogVehicle ?? {
+    id: value.vehicleId as string,
+    name: (value.vehicleName as string).trim(),
+  };
 
   const colorValue = paint.color;
   if (typeof colorValue !== "string") {
@@ -134,8 +145,8 @@ function normalizeConfig(value: unknown): ValidationResult<CarConfig> {
   return {
     success: true,
     data: {
-      vehicleId: DEFAULT_VEHICLE.id,
-      vehicleName: DEFAULT_VEHICLE.name,
+      vehicleId: vehicle.id,
+      vehicleName: vehicle.name,
       paint: {
         type: color.paintType,
         color: color.hex,

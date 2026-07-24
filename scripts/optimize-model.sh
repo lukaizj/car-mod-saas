@@ -14,6 +14,7 @@ fi
 input=$1
 output=$2
 texture_size=${TEXTURE_SIZE:-1024}
+model_profile=${MODEL_PROFILE:-m4}
 
 if [[ ! -f "$input" ]]; then
   echo "Input file does not exist: $input" >&2
@@ -51,28 +52,52 @@ trap 'rm -f "$tmp_output"' EXIT
 gltf_transform=(npx --yes @gltf-transform/cli@4.4.1)
 
 check_configurator_names() {
-  python3 - "$1" <<'PY'
+  python3 - "$1" "$model_profile" <<'PY'
 import json
 import struct
 import sys
 
-path = sys.argv[1]
-required_nodes = {
-    "Sketchfab_model",
-    "root",
-    "GLTF_SceneRootNode",
-    "BodyParts_1",
-    "WHeelsandrims_2",
+path, profile = sys.argv[1:]
+profiles = {
+    "m4": {
+        "nodes": {
+            "Sketchfab_model",
+            "root",
+            "GLTF_SceneRootNode",
+            "BodyParts_1",
+            "WHeelsandrims_2",
+        },
+        "materials": {
+            "Mesheszx1Mtl",
+            "Meshesbody151Mtl",
+            "Mesheslivery1Mtl",
+            "Mesheswindows1Mtl",
+            "Caliper1Mtl",
+            "Meshesm8rim1Mtl",
+            "Meshesm8rim0011Mtl",
+        },
+    },
+    "rs6": {
+        "nodes": {
+            "Sketchfab_model",
+            "root",
+            "GLTF_SceneRootNode",
+            "Circle.014_149",
+            "Circle.024_163",
+        },
+        "materials": {
+            "CARI_PAINT",
+            "Glass",
+            "Brake_Kit",
+            "RIM_DARK",
+            "RIM_BRIGHT",
+        },
+    },
 }
-required_materials = {
-    "Mesheszx1Mtl",
-    "Meshesbody151Mtl",
-    "Mesheslivery1Mtl",
-    "Mesheswindows1Mtl",
-    "Caliper1Mtl",
-    "Meshesm8rim1Mtl",
-    "Meshesm8rim0011Mtl",
-}
+if profile not in profiles:
+    raise SystemExit(f"Unknown MODEL_PROFILE: {profile}")
+required_nodes = profiles[profile]["nodes"]
+required_materials = profiles[profile]["materials"]
 
 with open(path, "rb") as model:
     magic, version, _ = struct.unpack("<4sII", model.read(12))
@@ -101,7 +126,7 @@ if missing_nodes or missing_materials:
     raise SystemExit(1)
 
 print(
-    f"Configurator names verified: {len(required_nodes)} nodes, "
+    f"Configurator profile {profile} verified: {len(required_nodes)} nodes, "
     f"{len(required_materials)} materials ({path})"
 )
 PY

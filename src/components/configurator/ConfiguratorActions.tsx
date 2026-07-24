@@ -5,16 +5,19 @@ import {
   BODYKITS,
   CALIPER_COLORS,
   COVERAGE_OPTIONS,
+  DEFAULT_VEHICLE,
   LIVERIES,
   PAINT_COLORS,
   SPOILERS,
+  VEHICLES,
   WHEELS,
   WHEEL_COLORS,
 } from "@/lib/catalog";
 import { useConfigStore } from "@/store/configStore";
 
 interface SharedConfig {
-  v: 1;
+  v: 1 | 2;
+  vehicle: string;
   paint: string;
   coverage: string;
   livery: string;
@@ -35,7 +38,7 @@ function decodeSharedConfig(value: string): SharedConfig | null {
     const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
     const parsed: unknown = JSON.parse(window.atob(padded));
 
-    if (!isRecord(parsed) || parsed.v !== 1) return null;
+    if (!isRecord(parsed) || (parsed.v !== 1 && parsed.v !== 2)) return null;
 
     const fields = [
       "paint",
@@ -51,8 +54,15 @@ function decodeSharedConfig(value: string): SharedConfig | null {
       return null;
     }
 
-    const config = parsed as unknown as SharedConfig;
+    const config = {
+      ...(parsed as unknown as Omit<SharedConfig, "vehicle">),
+      vehicle:
+        parsed.v === 2 && typeof parsed.vehicle === "string"
+          ? parsed.vehicle
+          : DEFAULT_VEHICLE.id,
+    };
     const valid =
+      VEHICLES.some((item) => item.id === config.vehicle) &&
       PAINT_COLORS.some((item) => item.id === config.paint) &&
       COVERAGE_OPTIONS.some((item) => item.id === config.coverage) &&
       LIVERIES.some((item) => item.id === config.livery) &&
@@ -94,6 +104,8 @@ async function copyText(value: string) {
 
 export default function ConfiguratorActions() {
   const config = useConfigStore((state) => state.config);
+  const customVehicle = useConfigStore((state) => state.customVehicle);
+  const setVehicle = useConfigStore((state) => state.setVehicle);
   const setPaintColor = useConfigStore((state) => state.setPaintColor);
   const setCoverage = useConfigStore((state) => state.setCoverage);
   const setLivery = useConfigStore((state) => state.setLivery);
@@ -122,6 +134,7 @@ export default function ConfiguratorActions() {
     const shared = decodeSharedConfig(encoded);
     if (!shared) return;
 
+    setVehicle(shared.vehicle);
     setPaintColor(shared.paint);
     setCoverage(
       shared.coverage as (typeof COVERAGE_OPTIONS)[number]["id"],
@@ -141,6 +154,7 @@ export default function ConfiguratorActions() {
     setSpoiler,
     setWheelColor,
     setWheels,
+    setVehicle,
   ]);
 
   useEffect(
@@ -151,6 +165,11 @@ export default function ConfiguratorActions() {
   );
 
   async function shareConfig() {
+    if (customVehicle?.id === config.vehicleId) {
+      showNotice("本地上传模型无法通过链接分享");
+      return;
+    }
+
     const paint = PAINT_COLORS.find(
       (item) => item.hex.toLowerCase() === config.paint.color.toLowerCase(),
     );
@@ -169,7 +188,8 @@ export default function ConfiguratorActions() {
     }
 
     const shared: SharedConfig = {
-      v: 1,
+      v: 2,
+      vehicle: config.vehicleId,
       paint: paint.id,
       coverage: config.paint.coverage,
       livery: config.appearance.liveryId,
@@ -202,7 +222,7 @@ export default function ConfiguratorActions() {
 
     try {
       const link = document.createElement("a");
-      link.download = `BMW-M4-${Date.now()}.png`;
+      link.download = `${config.vehicleId}-${Date.now()}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
       showNotice("方案图片已下载");

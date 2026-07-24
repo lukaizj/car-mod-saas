@@ -23,6 +23,13 @@
 # local database
 /dev.db
 
+# local evaluation asset; source license must be confirmed before redistribution
+/public/models/audi-rs6.web.glb
+
+# locally uploaded shop models; retain only the empty directory marker
+/public/models/uploads/*
+!/public/models/uploads/.gitkeep
+
 # misc
 .DS_Store
 *.pem

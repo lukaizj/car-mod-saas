@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Suspense, useEffect, useLayoutEffect, useMemo } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
 import {
   Bounds,
   Center,
@@ -14,16 +14,32 @@ import {
   useProgress,
 } from "@react-three/drei";
 import * as THREE from "three";
-import { DEFAULT_VEHICLE, LIVERIES } from "@/lib/catalog";
-import type { PaintType } from "@/lib/types";
+import { LIVERIES } from "@/lib/catalog";
+import type { PaintType, VehicleDefinition } from "@/lib/types";
 
 interface CarModelProps {
+  vehicle: VehicleDefinition;
   color: string;
   paintType: PaintType;
   liveryId: string;
   wheelColor: string;
   caliperColor: string;
+  onMaterialsDiscovered?: (materialNames: string[]) => void;
 }
+
+interface LiveryMaterialState {
+  originalMap: THREE.Texture | null;
+  originalColor: THREE.Color;
+  originalMetalness: number;
+  originalRoughness: number;
+  originalEnvMapIntensity: number;
+}
+
+const liveryMaterialStates = new WeakMap<
+  THREE.MeshPhysicalMaterial,
+  LiveryMaterialState
+>();
+const CUSTOM_MODEL_TARGET_SIZE = 20;
 
 function createBodyMaterial(source: THREE.MeshStandardMaterial) {
   return new THREE.MeshPhysicalMaterial({
@@ -40,14 +56,93 @@ function createBodyMaterial(source: THREE.MeshStandardMaterial) {
   });
 }
 
+function createWindowMaterial(source: THREE.MeshStandardMaterial) {
+  return new THREE.MeshPhysicalMaterial({
+    name: source.name,
+    color: "#0b1420",
+    side: source.side,
+    transparent: false,
+    opacity: 1,
+    alphaTest: source.alphaTest,
+    depthTest: source.depthTest,
+    depthWrite: true,
+    vertexColors: source.vertexColors,
+    flatShading: source.flatShading,
+    metalness: 0.55,
+    roughness: 0.14,
+    clearcoat: 1,
+    clearcoatRoughness: 0.12,
+    envMapIntensity: 1.25,
+  });
+}
+
+function applyPaintFinish(
+  material: THREE.MeshPhysicalMaterial,
+  color: string,
+  paintType: PaintType,
+) {
+  material.color.set(color);
+  material.metalness = paintType === "metallic" ? 0.72 : 0.08;
+  material.roughness =
+    paintType === "matte"
+      ? 0.72
+      : paintType === "wrap"
+        ? 0.48
+        : paintType === "solid"
+          ? 0.24
+          : 0.18;
+  material.clearcoat =
+    paintType === "matte" ? 0.08 : paintType === "wrap" ? 0.28 : 1;
+  material.clearcoatRoughness =
+    paintType === "matte" ? 0.7 : paintType === "wrap" ? 0.38 : 0.08;
+  material.envMapIntensity = paintType === "matte" ? 0.65 : 1.2;
+}
+
+function applyWindowFinish(material: THREE.MeshPhysicalMaterial) {
+  material.color.set("#0b1420");
+  material.metalness = 0.55;
+  material.roughness = 0.14;
+  material.clearcoat = 1;
+  material.clearcoatRoughness = 0.12;
+  material.envMapIntensity = 1.25;
+}
+
 function CarModel({
+  vehicle,
   color,
   paintType,
   liveryId,
   wheelColor,
   caliperColor,
+  onMaterialsDiscovered,
 }: CarModelProps) {
-  const { scene } = useGLTF(DEFAULT_VEHICLE.modelPath);
+  const { scene } = useGLTF(vehicle.modelPath);
+  const invalidate = useThree((state) => state.invalidate);
+
+  const modelScale = useMemo(() => {
+    if (!vehicle.isCustom) return 1;
+
+    scene.updateWorldMatrix(true, true);
+    const size = new THREE.Box3().setFromObject(scene).getSize(new THREE.Vector3());
+    const longestSide = Math.max(size.x, size.y, size.z);
+    return longestSide > 0 ? CUSTOM_MODEL_TARGET_SIZE / longestSide : 1;
+  }, [scene, vehicle.isCustom]);
+
+  const materialNames = useMemo(() => {
+    const names = new Set<string>();
+    scene.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(child.material)
+        ? child.material
+        : [child.material];
+      for (const material of materials) names.add(material.name);
+    });
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [scene]);
+
+  useEffect(() => {
+    onMaterialsDiscovered?.(materialNames);
+  }, [materialNames, onMaterialsDiscovered]);
 
   const cloned = useMemo(() => {
     const object = scene.clone(true);
@@ -56,26 +151,57 @@ function CarModel({
     object.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
 
-      const cloneMaterial = (material: THREE.Material) => {
+      const isMaterialArray = Array.isArray(child.material);
+      const sourceMaterials: THREE.Material[] = isMaterialArray
+        ? child.material
+        : [child.material];
+      const materials = sourceMaterials.map((material) => {
+        const isBodyPaint =
+          vehicle.materialNames.bodyPaint.includes(material.name) ||
+          vehicle.materialNames.bodyPaintNodes?.includes(child.name);
+        const isWindow =
+          vehicle.materialNames.windows === material.name &&
+          material instanceof THREE.MeshStandardMaterial;
+        const isLivery =
+          vehicle.materialNames.livery === material.name &&
+          material instanceof THREE.MeshStandardMaterial;
+
+        if (isWindow) {
+          const windowMaterial = createWindowMaterial(material);
+          ownedMaterials.push(windowMaterial);
+          return windowMaterial;
+        }
+
+        if (isLivery) {
+          const liveryMaterial = createBodyMaterial(material);
+
+          ownedMaterials.push(liveryMaterial);
+          liveryMaterialStates.set(liveryMaterial, {
+            originalMap: material.map,
+            originalColor: material.color.clone(),
+            originalMetalness: material.metalness,
+            originalRoughness: material.roughness,
+            originalEnvMapIntensity: material.envMapIntensity,
+          });
+          return liveryMaterial;
+        }
+
         const clonedMaterial =
-          DEFAULT_VEHICLE.materialNames.bodyPaint.includes(material.name) &&
-          material instanceof THREE.MeshStandardMaterial
+          isBodyPaint && material instanceof THREE.MeshStandardMaterial
             ? createBodyMaterial(material)
             : material.clone();
 
         ownedMaterials.push(clonedMaterial);
         return clonedMaterial;
-      };
+      });
 
-      child.material = Array.isArray(child.material)
-        ? child.material.map(cloneMaterial)
-        : cloneMaterial(child.material);
+      child.material = isMaterialArray ? materials : materials[0];
       child.castShadow = true;
       child.receiveShadow = true;
     });
 
     return { object, ownedMaterials };
-  }, [scene]);
+  }, [scene, vehicle]);
 
   useEffect(
     () => () => {
@@ -84,7 +210,7 @@ function CarModel({
     [cloned],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const livery = LIVERIES.find((item) => item.id === liveryId) ?? LIVERIES[0];
 
     cloned.object.traverse((child) => {
@@ -95,29 +221,55 @@ function CarModel({
 
       for (const material of materials) {
         if (
-          DEFAULT_VEHICLE.materialNames.bodyPaint.includes(material.name) &&
+          vehicle.materialNames.windows === material.name &&
           material instanceof THREE.MeshPhysicalMaterial
         ) {
-          material.color.set(color);
-          material.metalness = paintType === "metallic" ? 0.72 : 0.08;
-          material.roughness =
-            paintType === "matte"
-              ? 0.72
-              : paintType === "wrap"
-                ? 0.48
-                : paintType === "solid"
-                  ? 0.24
-                  : 0.18;
-          material.clearcoat =
-            paintType === "matte" ? 0.08 : paintType === "wrap" ? 0.28 : 1;
-          material.clearcoatRoughness =
-            paintType === "matte" ? 0.7 : paintType === "wrap" ? 0.38 : 0.08;
-          material.envMapIntensity = paintType === "matte" ? 0.65 : 1.2;
+          applyWindowFinish(material);
           continue;
         }
 
         if (
-          DEFAULT_VEHICLE.materialNames.wheels.includes(material.name) &&
+          vehicle.materialNames.livery === material.name &&
+          material instanceof THREE.MeshPhysicalMaterial
+        ) {
+          const state = liveryMaterialStates.get(material);
+          if (!state) continue;
+
+          if (livery.visible) {
+            if (material.map !== state.originalMap) {
+              material.map = state.originalMap;
+              material.needsUpdate = true;
+            }
+            material.color.copy(state.originalColor);
+            material.color.multiply(new THREE.Color(livery.tint));
+            material.metalness = state.originalMetalness;
+            material.roughness = state.originalRoughness;
+            material.clearcoat = 0;
+            material.clearcoatRoughness = 0;
+            material.envMapIntensity = state.originalEnvMapIntensity;
+          } else {
+            if (material.map) {
+              material.map = null;
+              material.needsUpdate = true;
+            }
+            applyPaintFinish(material, color, paintType);
+          }
+          continue;
+        }
+
+        if (
+          (vehicle.materialNames.bodyPaint.includes(material.name) ||
+            vehicle.materialNames.bodyPaintNodes?.includes(child.name)) &&
+          material instanceof THREE.MeshPhysicalMaterial
+        ) {
+          applyPaintFinish(material, color, paintType);
+          continue;
+        }
+
+        if (
+          vehicle.materialNames.wheels.includes(material.name) &&
+          (!vehicle.materialNames.wheelNodes ||
+            vehicle.materialNames.wheelNodes.includes(child.name)) &&
           material instanceof THREE.MeshStandardMaterial
         ) {
           if (material.map) {
@@ -131,7 +283,7 @@ function CarModel({
         }
 
         if (
-          material.name === DEFAULT_VEHICLE.materialNames.caliper &&
+          material.name === vehicle.materialNames.caliper &&
           material instanceof THREE.MeshStandardMaterial
         ) {
           material.color.set(caliperColor);
@@ -140,33 +292,25 @@ function CarModel({
           continue;
         }
 
-        if (
-          material.name === DEFAULT_VEHICLE.materialNames.windows &&
-          material instanceof THREE.MeshStandardMaterial
-        ) {
-          material.color.set("#7890a3");
-          material.transparent = true;
-          material.opacity = 0.38;
-          material.metalness = 0;
-          material.roughness = 0.08;
-          material.depthWrite = false;
-          continue;
-        }
-
-        if (
-          material.name === DEFAULT_VEHICLE.materialNames.livery &&
-          material instanceof THREE.MeshStandardMaterial
-        ) {
-          child.visible = livery.visible;
-          material.color.set(livery.tint);
-        }
       }
     });
-  }, [caliperColor, cloned, color, liveryId, paintType, wheelColor]);
+    invalidate();
+  }, [
+    caliperColor,
+    cloned,
+    color,
+    invalidate,
+    liveryId,
+    paintType,
+    vehicle,
+    wheelColor,
+  ]);
 
   return (
     <group rotation={[0, Math.PI / 7, 0]}>
-      <primitive object={cloned.object} />
+      <group scale={modelScale}>
+        <primitive object={cloned.object} />
+      </group>
     </group>
   );
 }
@@ -193,19 +337,23 @@ function Loader() {
 }
 
 interface CarConfiguratorProps {
+  vehicle: VehicleDefinition;
   color: string;
   paintType: PaintType;
   liveryId: string;
   wheelColor: string;
   caliperColor: string;
+  onMaterialsDiscovered?: (materialNames: string[]) => void;
 }
 
 export default function CarConfigurator({
+  vehicle,
   color,
   paintType,
   liveryId,
   wheelColor,
   caliperColor,
+  onMaterialsDiscovered,
 }: CarConfiguratorProps) {
   return (
     <div
@@ -230,14 +378,16 @@ export default function CarConfigurator({
           maxPolarAngle={Math.PI / 2.05}
         />
         <Suspense fallback={<Loader />}>
-          <Bounds fit clip observe margin={1.18}>
+          <Bounds key={vehicle.id} fit clip observe margin={1.18}>
             <Center top>
               <CarModel
+                vehicle={vehicle}
                 color={color}
                 paintType={paintType}
                 liveryId={liveryId}
                 wheelColor={wheelColor}
                 caliperColor={caliperColor}
+                onMaterialsDiscovered={onMaterialsDiscovered}
               />
             </Center>
           </Bounds>

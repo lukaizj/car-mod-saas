@@ -68,11 +68,39 @@ function createWindowMaterial(source: THREE.MeshStandardMaterial) {
     depthWrite: true,
     vertexColors: source.vertexColors,
     flatShading: source.flatShading,
-    metalness: 0.55,
-    roughness: 0.14,
-    clearcoat: 1,
-    clearcoatRoughness: 0.12,
-    envMapIntensity: 1.25,
+    metalness: 0.45,
+    roughness: 0.18,
+    clearcoat: 0.7,
+    clearcoatRoughness: 0.16,
+    envMapIntensity: 0.7,
+  });
+}
+
+function createWheelMaterial(source: THREE.MeshStandardMaterial) {
+  return new THREE.MeshPhysicalMaterial({
+    name: source.name,
+    // Keep the wheel's shape/detail maps, but omit the albedo map so the
+    // selected swatch can control the visible wheel color.
+    color: source.color.clone(),
+    normalMap: source.normalMap,
+    normalScale: source.normalScale?.clone?.() ?? new THREE.Vector2(1, 1),
+    aoMap: source.aoMap,
+    aoMapIntensity: source.aoMapIntensity,
+    metalnessMap: source.metalnessMap,
+    roughnessMap: source.roughnessMap,
+    side: source.side,
+    transparent: source.transparent,
+    opacity: source.opacity,
+    alphaTest: source.alphaTest,
+    depthTest: source.depthTest,
+    depthWrite: source.depthWrite,
+    vertexColors: source.vertexColors,
+    flatShading: false,
+    metalness: 0.62,
+    roughness: 0.34,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.22,
+    envMapIntensity: 0.55,
   });
 }
 
@@ -82,29 +110,60 @@ function applyPaintFinish(
   paintType: PaintType,
 ) {
   material.color.set(color);
-  material.metalness = paintType === "metallic" ? 0.72 : 0.08;
+  material.metalness = paintType === "metallic" ? 0.55 : 0.06;
   material.roughness =
     paintType === "matte"
       ? 0.72
       : paintType === "wrap"
         ? 0.48
         : paintType === "solid"
-          ? 0.24
-          : 0.18;
+          ? 0.28
+          : 0.22;
   material.clearcoat =
-    paintType === "matte" ? 0.08 : paintType === "wrap" ? 0.28 : 1;
+    paintType === "matte" ? 0.06 : paintType === "wrap" ? 0.22 : 0.55;
   material.clearcoatRoughness =
-    paintType === "matte" ? 0.7 : paintType === "wrap" ? 0.38 : 0.08;
-  material.envMapIntensity = paintType === "matte" ? 0.65 : 1.2;
+    paintType === "matte" ? 0.7 : paintType === "wrap" ? 0.4 : 0.18;
+  material.envMapIntensity = paintType === "matte" ? 0.45 : 0.7;
 }
 
 function applyWindowFinish(material: THREE.MeshPhysicalMaterial) {
   material.color.set("#0b1420");
-  material.metalness = 0.55;
-  material.roughness = 0.14;
-  material.clearcoat = 1;
-  material.clearcoatRoughness = 0.12;
-  material.envMapIntensity = 1.25;
+  material.metalness = 0.45;
+  material.roughness = 0.18;
+  material.clearcoat = 0.7;
+  material.clearcoatRoughness = 0.16;
+  material.envMapIntensity = 0.7;
+}
+
+function applyWheelFinish(
+  material: THREE.MeshStandardMaterial,
+  color: string,
+) {
+  material.color.set(color);
+  // The selected finish should not be overridden by source PBR value maps,
+  // while the ambient-occlusion map remains useful for spoke depth.
+  if (material.metalnessMap || material.roughnessMap) {
+    material.metalnessMap = null;
+    material.roughnessMap = null;
+    material.needsUpdate = true;
+  }
+  material.metalness = 0.62;
+  material.roughness = 0.34;
+  material.envMapIntensity = 0.55;
+  if (material instanceof THREE.MeshPhysicalMaterial) {
+    material.clearcoat = 0.4;
+    material.clearcoatRoughness = 0.22;
+  }
+}
+
+function applyCaliperFinish(
+  material: THREE.MeshStandardMaterial,
+  color: string,
+) {
+  material.color.set(color);
+  material.metalness = 0.22;
+  material.roughness = 0.48;
+  material.envMapIntensity = 0.45;
 }
 
 function CarModel({
@@ -165,6 +224,11 @@ function CarModel({
         const isLivery =
           vehicle.materialNames.livery === material.name &&
           material instanceof THREE.MeshStandardMaterial;
+        const isWheel =
+          vehicle.materialNames.wheels.includes(material.name) &&
+          (!vehicle.materialNames.wheelNodes ||
+            vehicle.materialNames.wheelNodes.includes(child.name)) &&
+          material instanceof THREE.MeshStandardMaterial;
 
         if (isWindow) {
           const windowMaterial = createWindowMaterial(material);
@@ -184,6 +248,12 @@ function CarModel({
             originalEnvMapIntensity: material.envMapIntensity,
           });
           return liveryMaterial;
+        }
+
+        if (isWheel) {
+          const wheelMaterial = createWheelMaterial(material);
+          ownedMaterials.push(wheelMaterial);
+          return wheelMaterial;
         }
 
         const clonedMaterial =
@@ -272,13 +342,7 @@ function CarModel({
             vehicle.materialNames.wheelNodes.includes(child.name)) &&
           material instanceof THREE.MeshStandardMaterial
         ) {
-          if (material.map) {
-            material.map = null;
-            material.needsUpdate = true;
-          }
-          material.color.set(wheelColor);
-          material.metalness = 0.9;
-          material.roughness = 0.24;
+          applyWheelFinish(material, wheelColor);
           continue;
         }
 
@@ -286,9 +350,7 @@ function CarModel({
           material.name === vehicle.materialNames.caliper &&
           material instanceof THREE.MeshStandardMaterial
         ) {
-          material.color.set(caliperColor);
-          material.metalness = 0.35;
-          material.roughness = 0.3;
+          applyCaliperFinish(material, caliperColor);
           continue;
         }
 
@@ -368,8 +430,10 @@ export default function CarConfigurator({
         shadows="basic"
       >
         <color attach="background" args={["#0a0a0a"]} />
-        <ambientLight intensity={0.55} />
-        <directionalLight position={[12, 18, 10]} intensity={2.2} castShadow />
+        <ambientLight intensity={0.7} />
+        <hemisphereLight intensity={0.45} color="#f2f5ff" groundColor="#1a1a1a" />
+        <directionalLight position={[12, 18, 10]} intensity={1.35} castShadow />
+        <directionalLight position={[-8, 6, -6]} intensity={0.45} />
         <OrbitControls
           makeDefault
           enablePan={false}
@@ -393,34 +457,40 @@ export default function CarConfigurator({
           </Bounds>
           <ContactShadows
             position={[0, 0, 0]}
-            opacity={0.7}
+            opacity={0.55}
             scale={28}
-            blur={3}
+            blur={3.5}
             far={12}
             frames={1}
           />
         </Suspense>
-        <Environment resolution={64}>
+        <Environment resolution={512}>
           <Lightformer
             form="rect"
-            intensity={4}
-            position={[0, 12, 2]}
+            intensity={1.1}
+            position={[0, 14, 0]}
             rotation-x={Math.PI / 2}
-            scale={[16, 10]}
+            scale={[20, 14]}
+          />
+          <Lightformer
+            form="ring"
+            intensity={0.7}
+            position={[0, 6, 0]}
+            scale={14}
           />
           <Lightformer
             form="rect"
-            intensity={3}
-            position={[-10, 4, 2]}
+            intensity={0.55}
+            position={[-12, 3, 4]}
             rotation-y={Math.PI / 2}
-            scale={[12, 6]}
+            scale={[10, 8]}
           />
           <Lightformer
             form="rect"
-            intensity={2.5}
-            position={[10, 3, -4]}
+            intensity={0.45}
+            position={[12, 3, -4]}
             rotation-y={-Math.PI / 2}
-            scale={[10, 5]}
+            scale={[10, 8]}
           />
         </Environment>
       </Canvas>

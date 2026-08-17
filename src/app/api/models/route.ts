@@ -20,11 +20,22 @@ export interface StoredModel {
 }
 
 export function uploadDirectory() {
-  return path.join(process.cwd(), "public", "models", "uploads");
+  const dataDirectory = process.env.CARMOD_DATA_DIR;
+  return dataDirectory
+    ? path.join(dataDirectory, "models", "uploads")
+    : path.join(process.cwd(), "public", "models", "uploads");
 }
 
 export function modelMetadataPath(id: string) {
   return path.join(uploadDirectory(), `${id}.json`);
+}
+
+export function modelFilePath(id: string) {
+  return path.join(uploadDirectory(), `${id}.glb`);
+}
+
+export function modelUrl(id: string) {
+  return `/api/models/${id}/file`;
 }
 
 function isGlb(buffer: ArrayBuffer) {
@@ -76,7 +87,7 @@ export async function POST(request: Request) {
   const id = crypto.randomUUID();
   const directory = uploadDirectory();
   await mkdir(directory, { recursive: true });
-  await writeFile(path.join(directory, `${id}.glb`), new Uint8Array(bytes));
+  await writeFile(modelFilePath(id), new Uint8Array(bytes));
 
   const fallbackName = model.name.replace(/\.glb$/i, "").slice(0, 80);
   const storedModel: StoredModel = {
@@ -84,7 +95,7 @@ export async function POST(request: Request) {
     name: normalizeVehicleName(formData.get("name"), fallbackName),
     fileName: model.name,
     fileSize: model.size,
-    modelPath: `/models/uploads/${id}.glb`,
+    modelPath: modelUrl(id),
     materialNames: { bodyPaint: [], wheels: [] },
     updatedAt: new Date().toISOString(),
   };

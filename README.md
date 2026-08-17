@@ -21,6 +21,16 @@
 - **实时预览**：车漆颜色/质感、拉花（BMW）、轮毂颜色、卡钳颜色、玻璃暗化
 - **数据**：SQLite + Prisma（MVP 本地开发）
 - **安全**：预约配置由服务端 Catalog 重建并定价，Quote/Appointment 事务写入
+- **桌面端**：基于 Electron 打包 macOS Apple Silicon 原生 App，支持离线数据持久化
+
+## 桌面客户端下载
+
+提供 macOS 原生客户端安装包：
+
+- **最新版本**：[carmod 0.1.0](https://github.com/lukaizj/car-mod-saas/releases/tag/v0.1.0)
+- **直接下载 DMG**：[carmod-0.1.0-arm64.dmg](https://github.com/lukaizj/car-mod-saas/releases/download/v0.1.0/carmod-0.1.0-arm64.dmg) (~559 MB)
+- **SHA-256 校验和**：`b51d5aeb255429be8faa6bff11170718b7af86473bb235ff1b0b65d02dfcbe89`
+- **在线下载页**：访问 `/download` 页面即可下载与查看安装指南
 
 ## 快速开始
 
@@ -39,6 +49,7 @@ npm run dev         # http://localhost:3000
 | 路径 | 说明 |
 |------|------|
 | `/` | 落地页 |
+| `/download` | macOS 桌面客户端 (DMG) 下载页 |
 | `/configure` | 3D 配置器 + 实时报价 |
 | `/quote` | 报价明细 + 预约表单 |
 | `/dashboard` | 门店后台 |

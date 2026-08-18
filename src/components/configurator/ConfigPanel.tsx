@@ -14,6 +14,7 @@ import {
   WHEELS,
   WHEEL_COLORS,
 } from "@/lib/catalog";
+import { soundEffects } from "@/lib/soundEffects";
 import { useConfigStore } from "@/store/configStore";
 
 function Section({
@@ -115,16 +116,53 @@ function OptionButtons({
 export default function ConfigPanel() {
   const {
     config,
-    setVehicle,
-    setPaintColor,
-    setCoverage,
-    setLivery,
-    setWheelColor,
-    setCaliperColor,
-    setWheels,
-    setSpoiler,
-    setBodykit,
+    setVehicle: rawSetVehicle,
+    setPaintColor: rawSetPaintColor,
+    setCoverage: rawSetCoverage,
+    setLivery: rawSetLivery,
+    setWheelColor: rawSetWheelColor,
+    setCaliperColor: rawSetCaliperColor,
+    setWheels: rawSetWheels,
+    setSpoiler: rawSetSpoiler,
+    setBodykit: rawSetBodykit,
   } = useConfigStore();
+
+  const setVehicle = (id: string) => {
+    soundEffects.playPartSnap();
+    rawSetVehicle(id);
+  };
+  const setPaintColor = (id: string) => {
+    soundEffects.playPaintSpray();
+    rawSetPaintColor(id);
+  };
+  const setCoverage = (id: (typeof COVERAGE_OPTIONS)[number]["id"]) => {
+    soundEffects.playPartSnap();
+    rawSetCoverage(id);
+  };
+  const setLivery = (id: string) => {
+    soundEffects.playPaintSpray();
+    rawSetLivery(id);
+  };
+  const setWheelColor = (id: string) => {
+    soundEffects.playPaintSpray();
+    rawSetWheelColor(id);
+  };
+  const setCaliperColor = (id: string) => {
+    soundEffects.playPaintSpray();
+    rawSetCaliperColor(id);
+  };
+  const setWheels = (id: string) => {
+    soundEffects.playPartSnap();
+    rawSetWheels(id);
+  };
+  const setSpoiler = (id: string) => {
+    soundEffects.playPartSnap();
+    rawSetSpoiler(id);
+  };
+  const setBodykit = (id: string) => {
+    soundEffects.playPartSnap();
+    rawSetBodykit(id);
+  };
   const coverage = COVERAGE_OPTIONS.find(
     (option) => option.id === config.paint.coverage,
   );

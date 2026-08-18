@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
@@ -25,6 +26,7 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import clsx from "clsx";
 import { LIVERIES } from "@/lib/catalog";
+import { soundEffects } from "@/lib/soundEffects";
 import type { PaintType, VehicleDefinition } from "@/lib/types";
 
 export interface CameraPreset {
@@ -91,6 +93,128 @@ export const CAMERA_PRESETS: CameraPreset[] = [
     description: "垂直俯瞰全车，观察车顶贴膜与全景天窗",
     position: [0.5, 34, 1],
     target: [0, 0.5, 0],
+  },
+];
+
+export interface EnvironmentPreset {
+  id: string;
+  name: string;
+  shortName: string;
+  description: string;
+  bgColor: string;
+  ambientIntensity: number;
+  hemisphereColor: string;
+  hemisphereGround: string;
+  hemisphereIntensity: number;
+  dirLight1Pos: [number, number, number];
+  dirLight1Intensity: number;
+  dirLight1Color: string;
+  dirLight2Pos: [number, number, number];
+  dirLight2Intensity: number;
+  dirLight2Color: string;
+  shadowOpacity: number;
+  topIntensity: number;
+  ringIntensity: number;
+  side1Intensity: number;
+  side1Color?: string;
+  side2Intensity: number;
+  side2Color?: string;
+}
+
+export const ENVIRONMENT_PRESETS: EnvironmentPreset[] = [
+  {
+    id: "studio",
+    name: "极简暗调影棚",
+    shortName: "影棚",
+    description: "经典深色影棚，突出车身轮廓与金属光泽",
+    bgColor: "#09090b",
+    ambientIntensity: 0.7,
+    hemisphereColor: "#f2f5ff",
+    hemisphereGround: "#1a1a1a",
+    hemisphereIntensity: 0.45,
+    dirLight1Pos: [12, 18, 10],
+    dirLight1Intensity: 1.35,
+    dirLight1Color: "#ffffff",
+    dirLight2Pos: [-8, 6, -6],
+    dirLight2Intensity: 0.45,
+    dirLight2Color: "#ffffff",
+    shadowOpacity: 0.55,
+    topIntensity: 1.1,
+    ringIntensity: 0.7,
+    side1Intensity: 0.55,
+    side2Intensity: 0.45,
+  },
+  {
+    id: "cyber",
+    name: "赛博霓虹夜景",
+    shortName: "赛博",
+    description: "青蓝与洋红双色霓虹反光，夜晚街头改装氛围",
+    bgColor: "#04060d",
+    ambientIntensity: 0.85,
+    hemisphereColor: "#00e5ff",
+    hemisphereGround: "#d900ff",
+    hemisphereIntensity: 0.65,
+    dirLight1Pos: [12, 18, 10],
+    dirLight1Intensity: 1.5,
+    dirLight1Color: "#00e5ff",
+    dirLight2Pos: [-10, 8, -8],
+    dirLight2Intensity: 1.2,
+    dirLight2Color: "#ff007f",
+    shadowOpacity: 0.7,
+    topIntensity: 1.4,
+    ringIntensity: 0.9,
+    side1Intensity: 1.2,
+    side1Color: "#00e5ff",
+    side2Intensity: 1.0,
+    side2Color: "#ff007f",
+  },
+  {
+    id: "sunset",
+    name: "日落黄金余晖",
+    shortName: "日落",
+    description: "夕阳低角度侧逆光，暖金光芒烘托车漆质感",
+    bgColor: "#0e0906",
+    ambientIntensity: 0.8,
+    hemisphereColor: "#ff9d00",
+    hemisphereGround: "#2a1508",
+    hemisphereIntensity: 0.55,
+    dirLight1Pos: [20, 9, 14],
+    dirLight1Intensity: 1.8,
+    dirLight1Color: "#ffaa33",
+    dirLight2Pos: [-8, 6, -6],
+    dirLight2Intensity: 0.6,
+    dirLight2Color: "#9333ea",
+    shadowOpacity: 0.6,
+    topIntensity: 1.0,
+    ringIntensity: 0.8,
+    side1Intensity: 1.1,
+    side1Color: "#ff8800",
+    side2Intensity: 0.6,
+    side2Color: "#a855f7",
+  },
+  {
+    id: "track",
+    name: "户外赛道天光",
+    shortName: "赛道",
+    description: "高对比度自然日光天光，还原真实户外日光表现",
+    bgColor: "#090d14",
+    ambientIntensity: 1.1,
+    hemisphereColor: "#e0f2fe",
+    hemisphereGround: "#334155",
+    hemisphereIntensity: 0.75,
+    dirLight1Pos: [8, 26, 6],
+    dirLight1Intensity: 2.1,
+    dirLight1Color: "#fffbf0",
+    dirLight2Pos: [-12, 10, -10],
+    dirLight2Intensity: 0.75,
+    dirLight2Color: "#93c5fd",
+    shadowOpacity: 0.65,
+    topIntensity: 1.6,
+    ringIntensity: 0.9,
+    side1Intensity: 0.8,
+    side1Color: "#ffffff",
+    side2Intensity: 0.7,
+    side2Color: "#bae6fd",
   },
 ];
 
@@ -426,7 +550,7 @@ function CarModel({
           applyCaliperFinish(material, caliperColor);
           continue;
         }
-      }
+      } 
     });
     invalidate();
   }, [
@@ -459,7 +583,7 @@ function Loader() {
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-800">
           <div
             className="h-full rounded-full bg-blue-500 transition-[width] duration-200"
-            style={{ width: `${Math.max(6, progress)}%` }}
+            style={{ width: Math.max(6, progress) + "%" }}
           />
         </div>
         <p className="mt-2 text-xs tabular-nums text-zinc-500">
@@ -601,10 +725,38 @@ export default function CarConfigurator({
   const [activePresetId, setActivePresetId] = useState<string | null>("front-34");
   const [targetRequest, setTargetRequest] = useState<CameraTargetRequest | null>(null);
   const [isStockPreview, setIsStockPreview] = useState<boolean>(false);
+  const [activeEnvId, setActiveEnvId] = useState<string>("studio");
+  const isMuted = useSyncExternalStore(
+    (cb) => soundEffects.subscribe(cb),
+    () => soundEffects.isMuted(),
+    () => false,
+  );
+
+  const activeEnv = useMemo(() => {
+    return (
+      ENVIRONMENT_PRESETS.find((e) => e.id === activeEnvId) ??
+      ENVIRONMENT_PRESETS[0]
+    );
+  }, [activeEnvId]);
 
   const handleSelectPreset = useCallback((id: string) => {
+    soundEffects.playCameraSwoosh();
     setActivePresetId(id);
     setTargetRequest({ presetId: id, requestId: Date.now() });
+  }, []);
+
+  const handleSelectEnv = useCallback((id: string) => {
+    soundEffects.playToggleClick();
+    setActiveEnvId(id);
+  }, []);
+
+  const handleToggleComparison = useCallback((stock: boolean) => {
+    soundEffects.playToggleClick();
+    setIsStockPreview(stock);
+  }, []);
+
+  const handleToggleMute = useCallback(() => {
+    soundEffects.toggleMuted();
   }, []);
 
   const handleUserInteraction = useCallback(() => {
@@ -638,13 +790,21 @@ export default function CarConfigurator({
         handleSelectPreset("front-34");
       } else if (e.key.toLowerCase() === "c") {
         e.preventDefault();
-        setIsStockPreview((prev) => !prev);
+        handleToggleComparison(!isStockPreview);
+      } else if (e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        const currentIndex = ENVIRONMENT_PRESETS.findIndex((env) => env.id === activeEnvId);
+        const nextEnv = ENVIRONMENT_PRESETS[(currentIndex + 1) % ENVIRONMENT_PRESETS.length];
+        if (nextEnv) handleSelectEnv(nextEnv.id);
+      } else if (e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        handleToggleMute();
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSelectPreset]);
+  }, [activeEnvId, handleSelectEnv, handleSelectPreset, handleToggleComparison, handleToggleMute, isStockPreview]);
 
   return (
     <div
@@ -658,11 +818,24 @@ export default function CarConfigurator({
         gl={{ powerPreference: "high-performance", preserveDrawingBuffer: true }}
         shadows="basic"
       >
-        <color attach="background" args={["#0a0a0a"]} />
-        <ambientLight intensity={0.7} />
-        <hemisphereLight intensity={0.45} color="#f2f5ff" groundColor="#1a1a1a" />
-        <directionalLight position={[12, 18, 10]} intensity={1.35} castShadow />
-        <directionalLight position={[-8, 6, -6]} intensity={0.45} />
+        <color attach="background" args={[activeEnv.bgColor]} />
+        <ambientLight intensity={activeEnv.ambientIntensity} />
+        <hemisphereLight
+          intensity={activeEnv.hemisphereIntensity}
+          color={activeEnv.hemisphereColor}
+          groundColor={activeEnv.hemisphereGround}
+        />
+        <directionalLight
+          position={activeEnv.dirLight1Pos}
+          intensity={activeEnv.dirLight1Intensity}
+          color={activeEnv.dirLight1Color}
+          castShadow
+        />
+        <directionalLight
+          position={activeEnv.dirLight2Pos}
+          intensity={activeEnv.dirLight2Intensity}
+          color={activeEnv.dirLight2Color}
+        />
         <OrbitControls
           ref={controlsRef}
           makeDefault
@@ -693,7 +866,7 @@ export default function CarConfigurator({
           </Bounds>
           <ContactShadows
             position={[0, 0, 0]}
-            opacity={0.55}
+            opacity={activeEnv.shadowOpacity}
             scale={28}
             blur={3.5}
             far={12}
@@ -703,27 +876,29 @@ export default function CarConfigurator({
         <Environment resolution={512}>
           <Lightformer
             form="rect"
-            intensity={1.1}
+            intensity={activeEnv.topIntensity}
             position={[0, 14, 0]}
             rotation-x={Math.PI / 2}
             scale={[20, 14]}
           />
           <Lightformer
             form="ring"
-            intensity={0.7}
+            intensity={activeEnv.ringIntensity}
             position={[0, 6, 0]}
             scale={14}
           />
           <Lightformer
             form="rect"
-            intensity={0.55}
+            color={activeEnv.side1Color}
+            intensity={activeEnv.side1Intensity}
             position={[-12, 3, 4]}
             rotation-y={Math.PI / 2}
             scale={[10, 8]}
           />
           <Lightformer
             form="rect"
-            intensity={0.45}
+            color={activeEnv.side2Color}
+            intensity={activeEnv.side2Intensity}
             position={[12, 3, -4]}
             rotation-y={-Math.PI / 2}
             scale={[10, 8]}
@@ -731,12 +906,12 @@ export default function CarConfigurator({
         </Environment>
       </Canvas>
 
-      {/* Before / After Comparison Toggle */}
+      {/* Before / After Comparison Toggle */} 
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1 shadow-2xl backdrop-blur-md">
           <button
             type="button"
-            onClick={() => setIsStockPreview(false)}
+            onClick={() => handleToggleComparison(false)}
             className={clsx(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
               !isStockPreview
@@ -748,7 +923,7 @@ export default function CarConfigurator({
           </button>
           <button
             type="button"
-            onClick={() => setIsStockPreview(true)}
+            onClick={() => handleToggleComparison(true)}
             className={clsx(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
               isStockPreview
@@ -771,8 +946,9 @@ export default function CarConfigurator({
         )}
       </div>
 
-      {/* Floating Camera Presets Bar */}
+      {/* Floating Bottom Controls HUD: Camera Presets + Environment Lighting + Mute */} 
       <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2">
+        {/* Left: Camera Presets */} 
         <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1.5 shadow-2xl backdrop-blur-md">
           <span className="hidden px-2 text-[11px] font-medium text-zinc-400 sm:inline-block">
             机位
@@ -784,7 +960,7 @@ export default function CarConfigurator({
                 key={preset.id}
                 type="button"
                 onClick={() => handleSelectPreset(preset.id)}
-                title={`${preset.name} (按键 ${preset.shortcut}) · ${preset.description}`}
+                title={preset.name + " (按键 " + preset.shortcut + ") · " + preset.description}
                 className={clsx(
                   "flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
                   isActive
@@ -806,9 +982,55 @@ export default function CarConfigurator({
           })}
         </div>
 
-        <div className="pointer-events-auto hidden items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-zinc-400 backdrop-blur-md md:flex">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-          <span>拖拽自由旋转 · 按 1-6/R 切视角 · 按 C 对比原厂</span>
+        {/* Right: Environment Lighting & Sound Toggle */} 
+        <div className="pointer-events-auto flex items-center gap-2">
+          {/* Environment Presets */} 
+          <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1.5 shadow-2xl backdrop-blur-md">
+            <span className="hidden px-2 text-[11px] font-medium text-zinc-400 md:inline-block">
+              光照
+            </span>
+            {ENVIRONMENT_PRESETS.map((env) => {
+              const isEnvActive = activeEnvId === env.id;
+              return (
+                <button
+                  key={env.id}
+                  type="button"
+                  onClick={() => handleSelectEnv(env.id)}
+                  title={env.name + " · " + env.description}
+                  className={clsx(
+                    "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
+                    isEnvActive
+                      ? "bg-zinc-100 text-zinc-950 font-semibold shadow-md"
+                      : "text-zinc-300 hover:bg-white/10 hover:text-white",
+                  )}
+                >
+                  {env.shortName}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Mute Audio Toggle */} 
+          <button
+            type="button"
+            onClick={handleToggleMute}
+            title={isMuted ? "取消静音 (按键 M)" : "静音 (按键 M)"}
+            className={clsx(
+              "flex items-center justify-center rounded-xl border border-white/10 bg-black/75 p-2.5 shadow-2xl backdrop-blur-md transition",
+              isMuted ? "text-zinc-500 hover:text-zinc-300" : "text-blue-400 hover:text-blue-300",
+            )}
+          >
+            {isMuted ? (
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+              </svg>
+            ) : (
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ export default function DownloadPage() {
   const releaseUrl =
     "https://github.com/lukaizj/car-mod-saas/releases/tag/v0.1.0";
   const sha256 =
-    "b51d5aeb255429be8faa6bff11170718b7af86473bb235ff1b0b65d02dfcbe89";
+    "b13c6b53aa8220bc51412a764af8c9ee4dcc6dfd27a552b4da7a43bac18200cf";
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-zinc-950 px-4 py-12 text-center">

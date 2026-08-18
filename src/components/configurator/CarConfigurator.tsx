@@ -1,7 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useLayoutEffect, useMemo } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Bounds,
   Center,
@@ -14,8 +22,77 @@ import {
   useProgress,
 } from "@react-three/drei";
 import * as THREE from "three";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import clsx from "clsx";
 import { LIVERIES } from "@/lib/catalog";
 import type { PaintType, VehicleDefinition } from "@/lib/types";
+
+export interface CameraPreset {
+  id: string;
+  name: string;
+  shortName: string;
+  shortcut: string;
+  description: string;
+  position: [number, number, number];
+  target: [number, number, number];
+}
+
+export const CAMERA_PRESETS: CameraPreset[] = [
+  {
+    id: "front-34",
+    name: "前 45° 全景",
+    shortName: "前45°",
+    shortcut: "1",
+    description: "经典全景视角，兼顾前脸与侧身线条",
+    position: [24, 10, 24],
+    target: [0, 1.0, 0],
+  },
+  {
+    id: "side",
+    name: "正侧面视",
+    shortName: "正侧",
+    shortcut: "2",
+    description: "水平侧身视角，观察车身贴膜与轮毂姿态",
+    position: [-14, 5, 28],
+    target: [0, 1.0, 0],
+  },
+  {
+    id: "front",
+    name: "正前脸",
+    shortName: "正前",
+    shortcut: "3",
+    description: "正前方低角度，观察进气格栅与前唇机盖",
+    position: [28, 4.5, 10],
+    target: [0, 0.9, 0],
+  },
+  {
+    id: "rear-34",
+    name: "后 45° 视角",
+    shortName: "后45°",
+    shortcut: "4",
+    description: "斜后方视角，观察尾翼、排气与后扩散器",
+    position: [-22, 8, -22],
+    target: [0, 1.0, 0],
+  },
+  {
+    id: "wheel",
+    name: "轮毂特写",
+    shortName: "轮毂",
+    shortcut: "5",
+    description: "特写前轮毂造型、刹车卡钳及轮胎细节",
+    position: [12, 2.8, 12],
+    target: [2.8, 0.7, 1.8],
+  },
+  {
+    id: "top",
+    name: "车顶俯视",
+    shortName: "俯视",
+    shortcut: "6",
+    description: "垂直俯瞰全车，观察车顶贴膜与全景天窗",
+    position: [0.5, 34, 1],
+    target: [0, 0.5, 0],
+  },
+];
 
 interface CarModelProps {
   vehicle: VehicleDefinition;
@@ -79,8 +156,6 @@ function createWindowMaterial(source: THREE.MeshStandardMaterial) {
 function createWheelMaterial(source: THREE.MeshStandardMaterial) {
   return new THREE.MeshPhysicalMaterial({
     name: source.name,
-    // Keep the wheel's shape/detail maps, but omit the albedo map so the
-    // selected swatch can control the visible wheel color.
     color: source.color.clone(),
     normalMap: source.normalMap,
     normalScale: source.normalScale?.clone?.() ?? new THREE.Vector2(1, 1),
@@ -140,8 +215,6 @@ function applyWheelFinish(
   color: string,
 ) {
   material.color.set(color);
-  // The selected finish should not be overridden by source PBR value maps,
-  // while the ambient-occlusion map remains useful for spoke depth.
   if (material.metalnessMap || material.roughnessMap) {
     material.metalnessMap = null;
     material.roughnessMap = null;
@@ -353,7 +426,6 @@ function CarModel({
           applyCaliperFinish(material, caliperColor);
           continue;
         }
-
       }
     });
     invalidate();
@@ -398,6 +470,109 @@ function Loader() {
   );
 }
 
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+interface CameraControllerProps {
+  targetPresetId: string | null;
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
+  onUserInteraction?: () => void;
+  onTransitionEnd?: () => void;
+}
+
+function CameraController({
+  targetPresetId,
+  controlsRef,
+  onUserInteraction,
+  onTransitionEnd,
+}: CameraControllerProps) {
+  const { camera, invalidate } = useThree();
+  const animRef = useRef<{
+    isAnimating: boolean;
+    startTime: number;
+    duration: number;
+    startPos: THREE.Vector3;
+    destPos: THREE.Vector3;
+    startTarget: THREE.Vector3;
+    destTarget: THREE.Vector3;
+  }>({
+    isAnimating: false,
+    startTime: 0,
+    duration: 850,
+    startPos: new THREE.Vector3(),
+    destPos: new THREE.Vector3(),
+    startTarget: new THREE.Vector3(),
+    destTarget: new THREE.Vector3(),
+  });
+
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    const handleStart = () => {
+      if (animRef.current.isAnimating) {
+        animRef.current.isAnimating = false;
+      }
+      onUserInteraction?.();
+    };
+
+    controls.addEventListener("start", handleStart);
+    return () => {
+      controls.removeEventListener("start", handleStart);
+    };
+  }, [controlsRef, onUserInteraction]);
+
+  useEffect(() => {
+    if (!targetPresetId) return;
+    const preset = CAMERA_PRESETS.find((p) => p.id === targetPresetId);
+    if (!preset) return;
+
+    const controls = controlsRef.current;
+    const currentTarget = controls
+      ? controls.target.clone()
+      : new THREE.Vector3(0, 1, 0);
+
+    animRef.current = {
+      isAnimating: true,
+      startTime: performance.now(),
+      duration: 850,
+      startPos: camera.position.clone(),
+      destPos: new THREE.Vector3(...preset.position),
+      startTarget: currentTarget,
+      destTarget: new THREE.Vector3(...preset.target),
+    };
+    invalidate();
+  }, [targetPresetId, camera, controlsRef, invalidate]);
+
+  useFrame(() => {
+    if (!animRef.current.isAnimating) return;
+
+    const { startTime, duration, startPos, destPos, startTarget, destTarget } =
+      animRef.current;
+    const elapsed = performance.now() - startTime;
+    const progress = Math.min(1, Math.max(0, elapsed / duration));
+    const t = easeInOutCubic(progress);
+
+    camera.position.lerpVectors(startPos, destPos, t);
+
+    const controls = controlsRef.current;
+    if (controls) {
+      controls.target.lerpVectors(startTarget, destTarget, t);
+      controls.update();
+    }
+
+    invalidate();
+
+    if (progress >= 1) {
+      animRef.current.isAnimating = false;
+      onTransitionEnd?.();
+    }
+  });
+
+  return null;
+}
+
 interface CarConfiguratorProps {
   vehicle: VehicleDefinition;
   color: string;
@@ -417,10 +592,45 @@ export default function CarConfigurator({
   caliperColor,
   onMaterialsDiscovered,
 }: CarConfiguratorProps) {
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+  const [activePresetId, setActivePresetId] = useState<string | null>("front-34");
+
+  const handleSelectPreset = useCallback((id: string) => {
+    setActivePresetId(id);
+  }, []);
+
+  const handleUserInteraction = useCallback(() => {
+    setActivePresetId(null);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+
+      const found = CAMERA_PRESETS.find((p) => p.shortcut === e.key);
+      if (found) {
+        e.preventDefault();
+        handleSelectPreset(found.id);
+      } else if (e.key.toLowerCase() === "r") {
+        e.preventDefault();
+        handleSelectPreset("front-34");
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSelectPreset]);
+
   return (
     <div
       id="car-configurator"
-      className="h-full w-full min-h-[420px] overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900 to-zinc-950"
+      className="relative h-full w-full min-h-[420px] overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900 to-zinc-950"
     >
       <Canvas
         camera={{ position: [24, 10, 24], fov: 38 }}
@@ -435,11 +645,17 @@ export default function CarConfigurator({
         <directionalLight position={[12, 18, 10]} intensity={1.35} castShadow />
         <directionalLight position={[-8, 6, -6]} intensity={0.45} />
         <OrbitControls
+          ref={controlsRef}
           makeDefault
           enablePan={false}
           minDistance={8}
           maxDistance={70}
           maxPolarAngle={Math.PI / 2.05}
+        />
+        <CameraController
+          targetPresetId={activePresetId}
+          controlsRef={controlsRef}
+          onUserInteraction={handleUserInteraction}
         />
         <Suspense fallback={<Loader />}>
           <Bounds key={vehicle.id} fit clip observe margin={1.18}>
@@ -494,6 +710,47 @@ export default function CarConfigurator({
           />
         </Environment>
       </Canvas>
+
+      {/* Floating Camera Presets Bar */}
+      <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2">
+        <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1.5 shadow-2xl backdrop-blur-md">
+          <span className="hidden px-2 text-[11px] font-medium text-zinc-400 sm:inline-block">
+            机位
+          </span>
+          {CAMERA_PRESETS.map((preset) => {
+            const isActive = activePresetId === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => handleSelectPreset(preset.id)}
+                title={`${preset.name} (按键 ${preset.shortcut}) · ${preset.description}`}
+                className={clsx(
+                  "flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
+                  isActive
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
+                    : "text-zinc-300 hover:bg-white/10 hover:text-white",
+                )}
+              >
+                <span>{preset.shortName}</span>
+                <span
+                  className={clsx(
+                    "hidden text-[10px] sm:inline-block",
+                    isActive ? "text-blue-200" : "text-zinc-500",
+                  )}
+                >
+                  {preset.shortcut}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="pointer-events-auto hidden items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-zinc-400 backdrop-blur-md md:flex">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+          <span>拖拽自由旋转 · 按 1-6 / R 切视角</span>
+        </div>
+      </div>
     </div>
   );
 }

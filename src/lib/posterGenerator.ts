@@ -1,3 +1,27 @@
+function drawRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  if (typeof ctx.roundRect === "function") {
+    drawRoundRect(ctx, x, y, w, h, r);
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
 import { drawQrToCanvas } from "./qr";
 import type { CarConfig, QuoteResult } from "./types";
 
@@ -118,8 +142,7 @@ export function generatePosterCanvas({
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
   const specCode = "SPEC-#" + dateStr + "-" + config.vehicleId.slice(0, 4).toUpperCase();
   ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
-  ctx.beginPath();
-  ctx.roundRect(width - 240, 68, 168, 28, 6);
+  drawRoundRect(ctx, width - 240, 68, 168, 28, 6);
   ctx.fill();
   ctx.fillStyle = "#60a5fa";
   ctx.font = "bold 11px monospace";
@@ -147,8 +170,7 @@ export function generatePosterCanvas({
 
   // Car container box
   ctx.fillStyle = "rgba(15, 18, 28, 0.65)";
-  ctx.beginPath();
-  ctx.roundRect(carAreaX, carAreaY, carAreaW, carAreaH, 20);
+  drawRoundRect(ctx, carAreaX, carAreaY, carAreaW, carAreaH, 20);
   ctx.fill();
   ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
   ctx.stroke();
@@ -181,8 +203,7 @@ export function generatePosterCanvas({
 
   // 3D Watermark pill
   ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-  ctx.beginPath();
-  ctx.roundRect(carAreaX + 20, carAreaY + carAreaH - 44, 110, 24, 12);
+  drawRoundRect(ctx, carAreaX + 20, carAreaY + carAreaH - 44, 110, 24, 12);
   ctx.fill();
   ctx.fillStyle = "#94a3b8";
   ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
@@ -275,8 +296,7 @@ export function generatePosterCanvas({
     ctx.fillStyle = card.isPrice
       ? "rgba(30, 58, 138, 0.25)"
       : "rgba(20, 24, 36, 0.75)";
-    ctx.beginPath();
-    ctx.roundRect(cx, cy, cardW, cardH, 14);
+    drawRoundRect(ctx, cx, cy, cardW, cardH, 14);
     ctx.fill();
     ctx.strokeStyle = card.isPrice
       ? "rgba(59, 130, 246, 0.4)"
@@ -328,8 +348,7 @@ export function generatePosterCanvas({
   ctx.save();
   // Footer container
   ctx.fillStyle = "rgba(15, 18, 28, 0.85)";
-  ctx.beginPath();
-  ctx.roundRect(72, footerY, width - 144, footerH, 18);
+  drawRoundRect(ctx, 72, footerY, width - 144, footerH, 18);
   ctx.fill();
   ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
   ctx.stroke();

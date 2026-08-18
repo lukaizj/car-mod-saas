@@ -200,7 +200,9 @@ export default function ConfiguratorActions() {
       spoiler: config.mods.spoilerId,
       bodykit: config.mods.bodykitId,
     };
-    const url = new URL(window.location.href);
+    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const origin = isLocal ? "https://carmod.app" : window.location.origin;
+    const url = new URL("/configure", origin);
     url.searchParams.set("config", encodeSharedConfig(shared));
     return url.toString();
   }, [config, customVehicle]);

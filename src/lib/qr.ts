@@ -1,4 +1,4 @@
-// Standalone ISO/IEC 18004 compliant Byte Mode QR Code Generator
+// Standalone ISO/IEC 18004 compliant Byte Mode QR Code Generator (Versions 1-20)
 
 class QRBitBuffer {
   buffer: number[] = [];
@@ -91,18 +91,62 @@ class QRPolynomial {
   }
 }
 
-const QR_BLOCK_TABLE: [number, number, number, number][] = [
-  [1, 0, 26, 16],
-  [2, 0, 44, 28],
-  [3, 0, 70, 44],
-  [4, 0, 100, 64],
-  [5, 0, 134, 86],
-  [6, 0, 172, 108],
-  [7, 0, 196, 124],
-  [8, 0, 242, 154],
-  [9, 0, 292, 182],
-  [10, 0, 346, 216],
+// ISO 18004 Table 7 & 9 for ECC Level M: [version, totalCodewords, dataCodewords, ecPerBlock, g1Blocks, g1DataCount, g2Blocks, g2DataCount]
+const RS_TABLE_M: [number, number, number, number, number, number, number, number][] = [
+  [1, 26, 16, 10, 1, 16, 0, 0],
+  [2, 44, 28, 16, 1, 28, 0, 0],
+  [3, 70, 44, 26, 1, 44, 0, 0],
+  [4, 100, 64, 18, 2, 32, 0, 0],
+  [5, 134, 86, 24, 2, 43, 0, 0],
+  [6, 172, 108, 16, 4, 27, 0, 0],
+  [7, 196, 124, 18, 4, 31, 0, 0],
+  [8, 242, 154, 22, 2, 38, 2, 39],
+  [9, 292, 182, 22, 3, 36, 2, 37],
+  [10, 346, 216, 26, 4, 43, 1, 44],
+  [11, 404, 252, 30, 1, 50, 4, 51],
+  [12, 466, 290, 22, 6, 36, 2, 37],
+  [13, 532, 332, 22, 8, 37, 4, 38],
+  [14, 581, 363, 24, 4, 40, 5, 41],
+  [15, 655, 415, 24, 5, 41, 5, 42],
+  [16, 733, 467, 28, 7, 45, 3, 46],
+  [17, 815, 521, 28, 10, 46, 1, 47],
+  [18, 901, 577, 26, 9, 43, 4, 44],
+  [19, 991, 637, 26, 3, 44, 11, 45],
+  [20, 1085, 701, 26, 3, 41, 13, 42],
 ];
+
+const ALIGNMENT_PATTERN_TABLE: number[][] = [
+  [],
+  [6, 18],
+  [6, 22],
+  [6, 26],
+  [6, 30],
+  [6, 34],
+  [6, 22, 38],
+  [6, 24, 42],
+  [6, 26, 46],
+  [6, 28, 50],
+  [6, 30, 54],
+  [6, 32, 58],
+  [6, 34, 62],
+  [6, 26, 46, 66],
+  [6, 26, 48, 70],
+  [6, 26, 50, 74],
+  [6, 30, 54, 78],
+  [6, 30, 56, 82],
+  [6, 30, 58, 86],
+  [6, 34, 62, 90],
+];
+
+function getVersionInfoBits(version: number): number {
+  if (version < 7) return 0;
+  let d = version << 12;
+  while (d >= (1 << 12)) {
+    const shift = Math.floor(Math.log2(d)) - 12;
+    d ^= (0x1f25 << shift);
+  }
+  return (version << 12) | d;
+}
 
 class QRCode {
   typeNumber: number;
@@ -124,6 +168,7 @@ class QRCode {
     this.setupTimingPattern();
     this.setupPositionAdjustPattern();
     this.setupTypeInfo();
+    this.setupVersionInfo();
     this.mapData(data);
   }
 
@@ -155,8 +200,8 @@ class QRCode {
   }
 
   private setupPositionAdjustPattern() {
-    if (this.typeNumber < 2) return;
-    const pos = [6, this.typeNumber * 4 + 10];
+    const pos = ALIGNMENT_PATTERN_TABLE[this.typeNumber - 1];
+    if (!pos || pos.length === 0) return;
     for (let i = 0; i < pos.length; i++) {
       for (let j = 0; j < pos.length; j++) {
         const row = pos[i]!;
@@ -196,6 +241,18 @@ class QRCode {
     this.modules[this.moduleCount - 8]![8] = true;
   }
 
+  private setupVersionInfo() {
+    if (this.typeNumber < 7) return;
+    const bits = getVersionInfoBits(this.typeNumber);
+    for (let i = 0; i < 18; i++) {
+      const mod = ((bits >> i) & 1) === 1;
+      // Top-right
+      this.modules[Math.floor(i / 3)]![this.moduleCount - 11 + (i % 3)] = mod;
+      // Bottom-left
+      this.modules[this.moduleCount - 11 + (i % 3)]![Math.floor(i / 3)] = mod;
+    }
+  }
+
   private mapData(data: number[]) {
     let inc = -1;
     let row = this.moduleCount - 1;
@@ -211,7 +268,6 @@ class QRCode {
             if (byteIndex < data.length) {
               dark = (((data[byteIndex] ?? 0) >>> bitIndex) & 1) === 1;
             }
-            // Mask pattern 0: (row + col) % 2 == 0
             const mask = (row + col - c) % 2 === 0;
             if (mask) dark = !dark;
             this.modules[row]![col - c] = dark;
@@ -237,52 +293,88 @@ export function generateQrMatrix(text: string): boolean[][] {
   const encoder = new TextEncoder();
   const bytes = encoder.encode(text);
 
-  let typeNumber = 1;
-  while (typeNumber <= 10) {
-    const row = QR_BLOCK_TABLE[typeNumber - 1];
-    if (row && bytes.length + 3 <= row[3]) break;
-    typeNumber++;
+  let version = 1;
+  while (version <= 20) {
+    const row = RS_TABLE_M[version - 1];
+    if (row && bytes.length + 3 <= row[2]) break;
+    version++;
   }
-  if (typeNumber > 10) typeNumber = 10;
+  if (version > 20) version = 20;
 
-  const row = QR_BLOCK_TABLE[typeNumber - 1] ?? [1, 0, 26, 16];
-  const totalCount = row[2];
-  const dataCount = row[3];
+  const row = RS_TABLE_M[version - 1] ?? RS_TABLE_M[0]!;
+  const dataCodewords = row[2];
+  const ecPerBlock = row[3];
+  const g1Blocks = row[4];
+  const g1DataCount = row[5];
+  const g2Blocks = row[6];
+  const g2DataCount = row[7];
 
   const buffer = new QRBitBuffer();
-  // 8-bit Byte mode indicator (0100)
-  buffer.put(4, 4);
-  buffer.put(bytes.length, 8);
+  buffer.put(4, 4); // Byte mode indicator (0100)
+  buffer.put(bytes.length, version < 10 ? 8 : 16);
   for (let i = 0; i < bytes.length; i++) buffer.put(bytes[i] ?? 0, 8);
 
   while (buffer.length % 8 !== 0) buffer.putBit(false);
 
   const padBytes = [0xec, 0x11];
   let padIndex = 0;
-  while (buffer.buffer.length < dataCount) {
+  while (buffer.buffer.length < dataCodewords) {
     buffer.buffer.push(padBytes[padIndex % 2] ?? 0);
     padIndex++;
   }
 
-  const ecCount = totalCount - dataCount;
+  // Split into RS blocks
+  const blocks: number[][] = [];
+  let offset = 0;
+  for (let i = 0; i < g1Blocks; i++) {
+    blocks.push(buffer.buffer.slice(offset, offset + g1DataCount));
+    offset += g1DataCount;
+  }
+  for (let i = 0; i < g2Blocks; i++) {
+    blocks.push(buffer.buffer.slice(offset, offset + g2DataCount));
+    offset += g2DataCount;
+  }
+
+  // Compute EC for each block
   let errorPoly = new QRPolynomial([1]);
-  for (let i = 0; i < ecCount; i++) {
+  for (let i = 0; i < ecPerBlock; i++) {
     errorPoly = errorPoly.multiply(new QRPolynomial([1, QRMath.gexp(i)]));
   }
 
-  const rawPoly = new QRPolynomial(buffer.buffer, errorPoly.getLength() - 1);
-  const modPoly = rawPoly.mod(errorPoly);
-  const ecData = new Array<number>(errorPoly.getLength() - 1).fill(0);
-  for (let i = 0; i < ecData.length; i++) {
-    const modIndex = i + modPoly.getLength() - ecData.length;
-    ecData[i] = modIndex >= 0 ? modPoly.get(modIndex) : 0;
+  const ecBlocks: number[][] = [];
+  for (const block of blocks) {
+    const rawPoly = new QRPolynomial(block, errorPoly.getLength() - 1);
+    const modPoly = rawPoly.mod(errorPoly);
+    const ecData = new Array<number>(errorPoly.getLength() - 1).fill(0);
+    for (let i = 0; i < ecData.length; i++) {
+      const modIndex = i + modPoly.getLength() - ecData.length;
+      ecData[i] = modIndex >= 0 ? modPoly.get(modIndex) : 0;
+    }
+    ecBlocks.push(ecData);
   }
 
-  const finalData = buffer.buffer.concat(ecData);
-  const qr = new QRCode(typeNumber);
+  // Interleave data codewords
+  const finalData: number[] = [];
+  const maxDataLen = Math.max(...blocks.map((b) => b.length));
+  for (let i = 0; i < maxDataLen; i++) {
+    for (let b = 0; b < blocks.length; b++) {
+      const blk = blocks[b]!;
+      if (i < blk.length) finalData.push(blk[i] ?? 0);
+    }
+  }
+
+  // Interleave EC codewords
+  for (let i = 0; i < ecPerBlock; i++) {
+    for (let b = 0; b < ecBlocks.length; b++) {
+      const blk = ecBlocks[b]!;
+      if (i < blk.length) finalData.push(blk[i] ?? 0);
+    }
+  }
+
+  const qr = new QRCode(version);
   qr.make(finalData);
 
-  return qr.modules.map((row) => row.map((cell) => cell === true));
+  return qr.modules.map((r) => r.map((cell) => cell === true));
 }
 
 export function drawQrToCanvas(
@@ -310,13 +402,28 @@ export function drawQrToCanvas(
   const qrSize = size - padding * 2;
   const cellSize = qrSize / count;
 
-  // Background
+  // Background with fallback for roundRect
   ctx.save();
   ctx.fillStyle = bgColor;
   if (borderRadius > 0) {
-    ctx.beginPath();
-    ctx.roundRect(x, y, size, size, borderRadius);
-    ctx.fill();
+    if (typeof ctx.roundRect === "function") {
+      ctx.beginPath();
+      ctx.roundRect(x, y, size, size, borderRadius);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(x + borderRadius, y);
+      ctx.lineTo(x + size - borderRadius, y);
+      ctx.quadraticCurveTo(x + size, y, x + size, y + borderRadius);
+      ctx.lineTo(x + size, y + size - borderRadius);
+      ctx.quadraticCurveTo(x + size, y + size, x + size - borderRadius, y + size);
+      ctx.lineTo(x + borderRadius, y + size);
+      ctx.quadraticCurveTo(x, y + size, x, y + size - borderRadius);
+      ctx.lineTo(x, y + borderRadius);
+      ctx.quadraticCurveTo(x, y, x + borderRadius, y);
+      ctx.closePath();
+      ctx.fill();
+    }
   } else {
     ctx.fillRect(x, y, size, size);
   }

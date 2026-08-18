@@ -14,6 +14,7 @@ import {
   WHEELS,
   WHEEL_COLORS,
 } from "@/lib/catalog";
+import { soundEffects } from "@/lib/soundEffects";
 import { useConfigStore } from "@/store/configStore";
 
 function Section({
@@ -69,10 +70,12 @@ function OptionButtons({
   options,
   selected,
   onSelect,
+  quoteOnly = false,
 }: {
   options: { id: string; name: string; price: number; description?: string }[];
   selected: string;
   onSelect: (id: string) => void;
+  quoteOnly?: boolean;
 }) {
   return (
     <div className="space-y-2">
@@ -89,7 +92,14 @@ function OptionButtons({
           )}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-sm">{opt.name}</span>
+            <span className="flex items-center gap-2 font-medium text-sm">
+              {opt.name}
+              {quoteOnly && opt.id !== "stock" && (
+                <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-zinc-300">
+                  仅报价
+                </span>
+              )}
+            </span>
             <span className="text-xs text-zinc-400">
               {opt.price === 0 ? "含" : `+¥${opt.price.toLocaleString()}`}
             </span>
@@ -106,16 +116,53 @@ function OptionButtons({
 export default function ConfigPanel() {
   const {
     config,
-    setVehicle,
-    setPaintColor,
-    setCoverage,
-    setLivery,
-    setWheelColor,
-    setCaliperColor,
-    setWheels,
-    setSpoiler,
-    setBodykit,
+    setVehicle: rawSetVehicle,
+    setPaintColor: rawSetPaintColor,
+    setCoverage: rawSetCoverage,
+    setLivery: rawSetLivery,
+    setWheelColor: rawSetWheelColor,
+    setCaliperColor: rawSetCaliperColor,
+    setWheels: rawSetWheels,
+    setSpoiler: rawSetSpoiler,
+    setBodykit: rawSetBodykit,
   } = useConfigStore();
+
+  const setVehicle = (id: string) => {
+    soundEffects.playPartSnap();
+    rawSetVehicle(id);
+  };
+  const setPaintColor = (id: string) => {
+    soundEffects.playPaintSpray();
+    rawSetPaintColor(id);
+  };
+  const setCoverage = (id: (typeof COVERAGE_OPTIONS)[number]["id"]) => {
+    soundEffects.playPartSnap();
+    rawSetCoverage(id);
+  };
+  const setLivery = (id: string) => {
+    soundEffects.playPaintSpray();
+    rawSetLivery(id);
+  };
+  const setWheelColor = (id: string) => {
+    soundEffects.playPaintSpray();
+    rawSetWheelColor(id);
+  };
+  const setCaliperColor = (id: string) => {
+    soundEffects.playPaintSpray();
+    rawSetCaliperColor(id);
+  };
+  const setWheels = (id: string) => {
+    soundEffects.playPartSnap();
+    rawSetWheels(id);
+  };
+  const setSpoiler = (id: string) => {
+    soundEffects.playPartSnap();
+    rawSetSpoiler(id);
+  };
+  const setBodykit = (id: string) => {
+    soundEffects.playPartSnap();
+    rawSetBodykit(id);
+  };
   const coverage = COVERAGE_OPTIONS.find(
     (option) => option.id === config.paint.coverage,
   );
@@ -230,22 +277,26 @@ export default function ConfigPanel() {
         )}
       </Section>
 
-      <Section title="轮毂">
+      <Section title="轮毂颜色 · 实时预览">
         <p className="text-xs text-zinc-500">
-          颜色实时预览：{config.appearance.wheelColorName}
+          当前：{config.appearance.wheelColorName}
         </p>
         <ColorSwatches
           options={WHEEL_COLORS}
           selected={config.appearance.wheelColor}
           onSelect={setWheelColor}
         />
+      </Section>
+
+      <Section title="轮毂款式 · 仅报价">
         <OptionButtons
           options={WHEELS}
           selected={config.mods.wheelsId}
           onSelect={setWheels}
+          quoteOnly
         />
         <p className="text-xs leading-relaxed text-zinc-500">
-          当前仅轮毂颜色实时呈现；轮毂款式用于报价，待独立轮毂 GLB 资产接入后切换模型。
+          款式选择会进入报价单，但不会更换 3D 轮毂模型；需接入独立轮毂 GLB 后才能实时预览。
         </p>
       </Section>
 
@@ -260,19 +311,21 @@ export default function ConfigPanel() {
         />
       </Section>
 
-      <Section title="尾翼">
+      <Section title="尾翼 · 仅报价">
         <OptionButtons
           options={SPOILERS}
           selected={config.mods.spoilerId}
           onSelect={setSpoiler}
+          quoteOnly
         />
       </Section>
 
-      <Section title="包围">
+      <Section title="包围 · 仅报价">
         <OptionButtons
           options={BODYKITS}
           selected={config.mods.bodykitId}
           onSelect={setBodykit}
+          quoteOnly
         />
       </Section>
     </div>

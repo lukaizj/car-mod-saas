@@ -1,14 +1,14 @@
 import { readFile, stat, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { NextResponse } from "next/server";
 import {
+  modelFilePath,
   modelMetadataPath,
+  modelUrl,
   type StoredModel,
-  uploadDirectory,
 } from "../route";
 import type { VehicleMaterialNames } from "@/lib/types";
 
-function isModelId(value: string) {
+export function isModelId(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     value,
   );
@@ -52,16 +52,17 @@ function parseMaterialNames(value: unknown): VehicleMaterialNames | null {
 async function readStoredModel(id: string) {
   try {
     const raw = await readFile(modelMetadataPath(id), "utf8");
-    return JSON.parse(raw) as StoredModel;
+    const storedModel = JSON.parse(raw) as StoredModel;
+    return { ...storedModel, modelPath: modelUrl(id) };
   } catch {
     try {
-      const model = await stat(path.join(uploadDirectory(), `${id}.glb`));
+      const model = await stat(modelFilePath(id));
       return {
         id,
         name: "自定义车型",
         fileName: `${id}.glb`,
         fileSize: model.size,
-        modelPath: `/models/uploads/${id}.glb`,
+        modelPath: modelUrl(id),
         materialNames: { bodyPaint: [], wheels: [] },
         updatedAt: new Date().toISOString(),
       };

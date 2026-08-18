@@ -6,16 +6,14 @@ function includesAny(value: string, keywords: string[]) {
 }
 
 function isWheelMaterial(name: string) {
-  const normalized = name.toLowerCase();
   return (
-    includesAny(normalized, ["wheel", "rim"]) &&
-    !includesAny(normalized, ["steering", "steer"])
+    includesAny(name, ["wheel", "rim"]) &&
+    !includesAny(name, ["steering", "steer"])
   );
 }
 
 function isBodyPaintMaterial(name: string) {
-  const normalized = name.toLowerCase();
-  return includesAny(normalized, [
+  return includesAny(name, [
     "body",
     "paint",
     "carpaint",
@@ -34,13 +32,24 @@ export function detectMaterialMapping(
   const windowMaterial = uniqueNames.find((name) =>
     includesAny(name, ["glass", "window", "windshield", "windscreen"]),
   );
-  const wheels = uniqueNames.filter((name) => isWheelMaterial(name));
   const caliper = uniqueNames.find((name) =>
     includesAny(name, ["caliper", "brake"]),
   );
-  const excluded = new Set([windowMaterial, caliper, ...wheels].filter(Boolean));
+
+  // Body paint before wheels: "primary" contains substring "rim".
   const bodyPaint = uniqueNames.filter(
-    (name) => !excluded.has(name) && isBodyPaintMaterial(name),
+    (name) =>
+      name !== windowMaterial &&
+      name !== caliper &&
+      isBodyPaintMaterial(name),
+  );
+  const bodyPaintSet = new Set(bodyPaint);
+  const wheels = uniqueNames.filter(
+    (name) =>
+      !bodyPaintSet.has(name) &&
+      name !== windowMaterial &&
+      name !== caliper &&
+      isWheelMaterial(name),
   );
 
   return {

@@ -96,9 +96,6 @@ export default function ConfigurePageClient() {
             <ModelBootPlaceholder />
           )}
           <ConfiguratorActions />
-          <div className="absolute bottom-4 left-4 rounded-lg bg-black/60 px-3 py-1.5 text-xs text-zinc-300 backdrop-blur">
-            拖拽旋转 · 滚轮缩放
-          </div>
         </div>
 
         <aside className="flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5">

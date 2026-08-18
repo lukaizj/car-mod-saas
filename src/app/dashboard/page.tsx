@@ -23,23 +23,48 @@ interface AppointmentRow {
 export default function DashboardPage() {
   const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/appointments")
-      .then((r) => r.json())
-      .then(setAppointments)
+      .then(async (response) => {
+        const payload: unknown = await response.json();
+        if (!response.ok || !Array.isArray(payload)) {
+          throw new Error("读取预约失败");
+        }
+        setAppointments(payload as AppointmentRow[]);
+      })
+      .catch((fetchError) => {
+        setAppointments([]);
+        setError(fetchError instanceof Error ? fetchError.message : "读取预约失败");
+      })
       .finally(() => setLoading(false));
   }, []);
 
   async function updateStatus(id: string, status: string) {
-    await fetch(`/api/appointments/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status } : a)),
-    );
+    setError("");
+    try {
+      const response = await fetch(`/api/appointments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok || !isAppointmentStatusPayload(payload)) {
+        throw new Error(readApiError(payload, "更新预约失败"));
+      }
+      setAppointments((prev) =>
+        prev.map((appointment) =>
+          appointment.id === id
+            ? { ...appointment, status: payload.status }
+            : appointment,
+        ),
+      );
+    } catch (updateError) {
+      setError(
+        updateError instanceof Error ? updateError.message : "更新预约失败",
+      );
+    }
   }
 
   return (
@@ -65,6 +90,8 @@ export default function DashboardPage() {
         <StatCard label="已确认" value={appointments.filter((a) => a.status === "confirmed").length} />
         <StatCard label="总预约" value={appointments.length} />
       </div>
+
+      {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
       <div className="mt-8 overflow-hidden rounded-2xl border border-zinc-800">
         <table className="w-full text-left text-sm">
@@ -98,7 +125,7 @@ export default function DashboardPage() {
               </tr>
             )}
             {appointments.map((a) => {
-              const config = JSON.parse(a.quote.config) as CarConfig;
+              const summary = summarizeConfig(a.quote.config);
               return (
                 <tr key={a.id} className="border-t border-zinc-800">
                   <td className="px-4 py-3">
@@ -109,8 +136,7 @@ export default function DashboardPage() {
                     {a.date} {a.timeSlot}
                   </td>
                   <td className="px-4 py-3 text-xs text-zinc-400">
-                    {config.paint.colorName}
-                    {config.mods.wheelsId !== "stock" && ` · ${config.mods.wheelsName}`}
+                    {summary}
                   </td>
                   <td className="px-4 py-3 font-medium">
                     ¥{a.quote.total.toLocaleString()}
@@ -137,6 +163,40 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isAppointmentStatusPayload(
+  value: unknown,
+): value is { status: string } {
+  return isRecord(value) && typeof value.status === "string";
+}
+
+function readApiError(value: unknown, fallback: string) {
+  return isRecord(value) && typeof value.error === "string"
+    ? value.error
+    : fallback;
+}
+
+function summarizeConfig(value: string) {
+  try {
+    const config = JSON.parse(value) as CarConfig;
+    if (
+      typeof config.paint?.colorName !== "string" ||
+      typeof config.mods?.wheelsId !== "string" ||
+      typeof config.mods?.wheelsName !== "string"
+    ) {
+      return "配置数据异常";
+    }
+    return config.mods.wheelsId === "stock"
+      ? config.paint.colorName
+      : `${config.paint.colorName} · ${config.mods.wheelsName}`;
+  } catch {
+    return "配置数据异常";
+  }
 }
 
 function StatCard({ label, value }: { label: string; value: number }) {

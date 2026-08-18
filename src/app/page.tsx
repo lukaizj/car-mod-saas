@@ -31,12 +31,19 @@ export default function HomePage() {
           >
             门店后台
           </Link>
+          <Link
+            href="/download"
+            className="rounded-2xl border border-blue-500/40 bg-blue-950/30 px-8 py-3.5 font-medium text-blue-300 transition hover:border-blue-400 hover:bg-blue-900/40 hover:text-white"
+          >
+            下载桌面端 (DMG)
+          </Link>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 pt-8 text-left text-sm">
+        <div className="grid grid-cols-2 gap-4 pt-8 text-left text-sm sm:grid-cols-4">
           <Feature title="3D 预览" desc="WebGL 实时换色" />
           <Feature title="自动报价" desc="贴膜+套件+工时" />
           <Feature title="预约到店" desc="门店确认施工" />
+          <Feature title="桌面客户端" desc="macOS 原生离线运行" />
         </div>
       </div>
     </main>

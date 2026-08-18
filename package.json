@@ -1,7 +1,9 @@
 {
-  "name": "car-mod-saas",
+  "name": "carmod",
+  "productName": "carmod",
   "version": "0.1.0",
   "private": true,
+  "description": "carmod — 3D 汽车改装配置客户端",
   "author": {
     "name": "lukaizj",
     "url": "https://github.com/lukaizj"
@@ -12,8 +14,11 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/patch-next-externals.cjs",
     "start": "next start",
+    "desktop:dev": "npm run build && electron desktop/main.cjs",
+    "desktop:pack": "npm run build && electron-builder --dir",
+    "desktop:dist": "npm run build && electron-builder",
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -23,6 +28,52 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "main": "desktop/main.cjs",
+  "build": {
+    "appId": "com.carmod.app",
+    "productName": "carmod",
+    "asar": false,
+    "files": [
+      ".next/**/*",
+      "public/**/*",
+      "desktop/**/*",
+      "assets/carmod.png",
+      "package.json",
+      "node_modules/**/*",
+      "!node_modules/.cache/**/*",
+      "!node_modules/electron*/**/*",
+      "!node_modules/electron-builder/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dev.db",
+        "to": "dev.db",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "icon": "assets/carmod.png",
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "icon": "assets/carmod.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "category": "Graphics",
+      "icon": "assets",
+      "target": [
+        "AppImage"
+      ]
+    }
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.0",
@@ -45,6 +96,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.185.1",
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "prisma": "^7.9.0",

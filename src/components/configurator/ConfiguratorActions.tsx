@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import PosterModal from "./PosterModal";
 import {
   BODYKITS,
   CALIPER_COLORS,
@@ -13,6 +14,8 @@ import {
   WHEELS,
   WHEEL_COLORS,
 } from "@/lib/catalog";
+import { calculateQuote } from "@/lib/pricing";
+import { soundEffects } from "@/lib/soundEffects";
 import { useConfigStore } from "@/store/configStore";
 
 interface SharedConfig {
@@ -117,6 +120,9 @@ export default function ConfiguratorActions() {
   const loadedShare = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [notice, setNotice] = useState("");
+  const [isPosterOpen, setIsPosterOpen] = useState(false);
+
+  const quote = useMemo(() => calculateQuote(config), [config]);
 
   function showNotice(message: string) {
     setNotice(message);
@@ -164,11 +170,9 @@ export default function ConfiguratorActions() {
     [],
   );
 
-  async function shareConfig() {
-    if (customVehicle?.id === config.vehicleId) {
-      showNotice("本地上传模型无法通过链接分享");
-      return;
-    }
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") return "https://carmod.app/configure";
+    if (customVehicle?.id === config.vehicleId) return window.location.href;
 
     const paint = PAINT_COLORS.find(
       (item) => item.hex.toLowerCase() === config.paint.color.toLowerCase(),
@@ -182,10 +186,7 @@ export default function ConfiguratorActions() {
         item.hex.toLowerCase() === config.appearance.caliperColor.toLowerCase(),
     );
 
-    if (!paint || !wheelColor || !caliperColor) {
-      showNotice("当前方案无法分享");
-      return;
-    }
+    if (!paint || !wheelColor || !caliperColor) return window.location.href;
 
     const shared: SharedConfig = {
       v: 2,
@@ -199,12 +200,23 @@ export default function ConfiguratorActions() {
       spoiler: config.mods.spoilerId,
       bodykit: config.mods.bodykitId,
     };
-    const url = new URL(window.location.href);
+    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const origin = isLocal ? "https://carmod.app" : window.location.origin;
+    const url = new URL("/configure", origin);
     url.searchParams.set("config", encodeSharedConfig(shared));
+    return url.toString();
+  }, [config, customVehicle]);
+
+  async function shareConfig() {
+    soundEffects.playToggleClick();
+    if (customVehicle?.id === config.vehicleId) {
+      showNotice("本地上传模型无法通过链接分享");
+      return;
+    }
 
     try {
-      await copyText(url.toString());
-      window.history.replaceState(null, "", url);
+      await copyText(shareUrl);
+      window.history.replaceState(null, "", shareUrl);
       showNotice("方案链接已复制");
     } catch {
       showNotice("复制失败，请手动复制地址栏");
@@ -212,6 +224,7 @@ export default function ConfiguratorActions() {
   }
 
   function downloadSnapshot() {
+    soundEffects.playCameraShutter();
     const canvas = document.querySelector<HTMLCanvasElement>(
       "#car-configurator canvas",
     );
@@ -222,7 +235,7 @@ export default function ConfiguratorActions() {
 
     try {
       const link = document.createElement("a");
-      link.download = `${config.vehicleId}-${Date.now()}.png`;
+      link.download = config.vehicleId + "-" + Date.now() + ".png";
       link.href = canvas.toDataURL("image/png");
       link.click();
       showNotice("方案图片已下载");
@@ -232,29 +245,53 @@ export default function ConfiguratorActions() {
   }
 
   return (
-    <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-      {notice && (
-        <span
-          role="status"
-          className="rounded-lg bg-black/75 px-3 py-2 text-xs text-zinc-200 backdrop-blur"
+    <>
+      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+        {notice && (
+          <span
+            role="status"
+            className="rounded-lg bg-black/75 px-3 py-2 text-xs text-zinc-200 backdrop-blur"
+          >
+            {notice}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            soundEffects.playCameraShutter();
+            setIsPosterOpen(true);
+          }}
+          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-900/40 transition hover:bg-blue-500 hover:shadow-blue-600/30"
         >
-          {notice}
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={downloadSnapshot}
-        className="rounded-lg border border-white/15 bg-black/65 px-3 py-2 text-xs font-medium text-zinc-200 backdrop-blur transition hover:bg-zinc-800"
-      >
-        下载截图
-      </button>
-      <button
-        type="button"
-        onClick={shareConfig}
-        className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-950/30 transition hover:bg-blue-500"
-      >
-        分享方案
-      </button>
-    </div>
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          生成海报
+        </button>
+        <button
+          type="button"
+          onClick={downloadSnapshot}
+          className="rounded-lg border border-white/15 bg-black/65 px-3 py-2 text-xs font-medium text-zinc-200 backdrop-blur transition hover:bg-zinc-800"
+        >
+          下载截图
+        </button>
+        <button
+          type="button"
+          onClick={shareConfig}
+          className="rounded-lg border border-white/15 bg-black/65 px-3 py-2 text-xs font-medium text-zinc-200 backdrop-blur transition hover:bg-zinc-800"
+        >
+          分享链接
+        </button>
+      </div>
+
+      <PosterModal
+        isOpen={isPosterOpen}
+        onClose={() => setIsPosterOpen(false)}
+        config={config}
+        quote={quote}
+        vehicleName={config.vehicleName}
+        shareUrl={shareUrl}
+      />
+    </>
   );
 }

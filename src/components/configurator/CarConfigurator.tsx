@@ -474,15 +474,20 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+export interface CameraTargetRequest {
+  presetId: string;
+  requestId: number;
+}
+
 interface CameraControllerProps {
-  targetPresetId: string | null;
+  target: CameraTargetRequest | null;
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   onUserInteraction?: () => void;
   onTransitionEnd?: () => void;
 }
 
 function CameraController({
-  targetPresetId,
+  target,
   controlsRef,
   onUserInteraction,
   onTransitionEnd,
@@ -524,14 +529,14 @@ function CameraController({
   }, [controlsRef, onUserInteraction]);
 
   useEffect(() => {
-    if (!targetPresetId) return;
-    const preset = CAMERA_PRESETS.find((p) => p.id === targetPresetId);
+    if (!target) return;
+    const preset = CAMERA_PRESETS.find((p) => p.id === target.presetId);
     if (!preset) return;
 
     const controls = controlsRef.current;
     const currentTarget = controls
       ? controls.target.clone()
-      : new THREE.Vector3(0, 1, 0);
+      : new THREE.Vector3(0, 1.0, 0);
 
     animRef.current = {
       isAnimating: true,
@@ -543,7 +548,7 @@ function CameraController({
       destTarget: new THREE.Vector3(...preset.target),
     };
     invalidate();
-  }, [targetPresetId, camera, controlsRef, invalidate]);
+  }, [target, camera, controlsRef, invalidate]);
 
   useFrame(() => {
     if (!animRef.current.isAnimating) return;
@@ -594,14 +599,24 @@ export default function CarConfigurator({
 }: CarConfiguratorProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>("front-34");
+  const [targetRequest, setTargetRequest] = useState<CameraTargetRequest | null>(null);
 
   const handleSelectPreset = useCallback((id: string) => {
     setActivePresetId(id);
+    setTargetRequest({ presetId: id, requestId: Date.now() });
   }, []);
 
   const handleUserInteraction = useCallback(() => {
     setActivePresetId(null);
   }, []);
+
+  const prevVehicleIdRef = useRef(vehicle.id);
+  useEffect(() => {
+    if (prevVehicleIdRef.current !== vehicle.id) {
+      prevVehicleIdRef.current = vehicle.id;
+      handleSelectPreset("front-34");
+    }
+  }, [vehicle.id, handleSelectPreset]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -633,7 +648,7 @@ export default function CarConfigurator({
       className="relative h-full w-full min-h-[420px] overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900 to-zinc-950"
     >
       <Canvas
-        camera={{ position: [24, 10, 24], fov: 38 }}
+        camera={{ position: [24, 10, 24], fov: 38, near: 0.1, far: 250 }}
         dpr={[1, 1.5]}
         frameloop="demand"
         gl={{ powerPreference: "high-performance", preserveDrawingBuffer: true }}
@@ -648,17 +663,18 @@ export default function CarConfigurator({
           ref={controlsRef}
           makeDefault
           enablePan={false}
+          target={[0, 1.0, 0]}
           minDistance={8}
           maxDistance={70}
           maxPolarAngle={Math.PI / 2.05}
         />
         <CameraController
-          targetPresetId={activePresetId}
+          target={targetRequest}
           controlsRef={controlsRef}
           onUserInteraction={handleUserInteraction}
         />
         <Suspense fallback={<Loader />}>
-          <Bounds key={vehicle.id} fit clip observe margin={1.18}>
+          <Bounds key={vehicle.id} clip observe margin={1.18}>
             <Center top>
               <CarModel
                 vehicle={vehicle}

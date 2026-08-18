@@ -3,10 +3,30 @@ const { spawn } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
+const net = require("node:net");
 const { ensureDatabase } = require("./storage.cjs");
 
-const PORT = Number(process.env.CARMOD_PORT || 3210);
 let nextProcess;
+
+function findAvailablePort(preferred = 3210) {
+  return new Promise((resolve) => {
+    const testServer = net.createServer();
+    testServer.unref();
+    testServer.on("error", () => {
+      const fallbackServer = net.createServer();
+      fallbackServer.unref();
+      fallbackServer.on("error", () => resolve(preferred));
+      fallbackServer.listen(0, "127.0.0.1", () => {
+        const port = fallbackServer.address().port;
+        fallbackServer.close(() => resolve(port));
+      });
+    });
+    testServer.listen(preferred, "127.0.0.1", () => {
+      const port = testServer.address().port;
+      testServer.close(() => resolve(port));
+    });
+  });
+}
 
 function nextCli() {
   return path.join(app.getAppPath(), "node_modules", "next", "dist", "bin", "next");
@@ -34,7 +54,7 @@ function waitForServer(url, attempts = 80) {
   });
 }
 
-function startNextServer() {
+function startNextServer(port) {
   if (nextProcess && nextProcess.exitCode === null) return;
 
   const dataDirectory = path.join(app.getPath("userData"), "data");
@@ -43,7 +63,7 @@ function startNextServer() {
     ? path.join(process.resourcesPath, "dev.db")
     : path.join(app.getAppPath(), "dev.db");
   const databasePath = ensureDatabase({ dataDirectory, templatePath });
-  nextProcess = spawn(process.execPath, [nextCli(), "start", "-p", String(PORT)], {
+  nextProcess = spawn(process.execPath, [nextCli(), "start", "-p", String(port)], {
     cwd: app.getAppPath(),
     env: {
       ...process.env,
@@ -62,8 +82,11 @@ function startNextServer() {
 }
 
 async function createWindow() {
-  startNextServer();
-  await waitForServer(`http://127.0.0.1:${PORT}/configure`);
+  const preferredPort = process.env.CARMOD_PORT ? Number(process.env.CARMOD_PORT) : 3210;
+  const port = await findAvailablePort(preferredPort);
+
+  startNextServer(port);
+  await waitForServer(`http://127.0.0.1:${port}/configure`);
 
   const window = new BrowserWindow({
     width: 1440,
@@ -82,11 +105,11 @@ async function createWindow() {
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith(`http://127.0.0.1:${PORT}`)) shell.openExternal(url);
+    if (!url.startsWith(`http://127.0.0.1:${port}`)) shell.openExternal(url);
     return { action: "deny" };
   });
 
-  await window.loadURL(`http://127.0.0.1:${PORT}/`);
+  await window.loadURL(`http://127.0.0.1:${port}/`);
 }
 
 app.whenReady().then(() => createWindow().catch((error) => {

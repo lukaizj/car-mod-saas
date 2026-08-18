@@ -600,6 +600,7 @@ export default function CarConfigurator({
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>("front-34");
   const [targetRequest, setTargetRequest] = useState<CameraTargetRequest | null>(null);
+  const [isStockPreview, setIsStockPreview] = useState<boolean>(false);
 
   const handleSelectPreset = useCallback((id: string) => {
     setActivePresetId(id);
@@ -635,6 +636,9 @@ export default function CarConfigurator({
       } else if (e.key.toLowerCase() === "r") {
         e.preventDefault();
         handleSelectPreset("front-34");
+      } else if (e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        setIsStockPreview((prev) => !prev);
       }
     }
 
@@ -678,11 +682,11 @@ export default function CarConfigurator({
             <Center top>
               <CarModel
                 vehicle={vehicle}
-                color={color}
-                paintType={paintType}
-                liveryId={liveryId}
-                wheelColor={wheelColor}
-                caliperColor={caliperColor}
+                color={isStockPreview ? "#f2f2f2" : color}
+                paintType={isStockPreview ? "solid" : paintType}
+                liveryId={isStockPreview ? "none" : liveryId}
+                wheelColor={isStockPreview ? "#b8bcc2" : wheelColor}
+                caliperColor={isStockPreview ? "#18191b" : caliperColor}
                 onMaterialsDiscovered={onMaterialsDiscovered}
               />
             </Center>
@@ -727,6 +731,46 @@ export default function CarConfigurator({
         </Environment>
       </Canvas>
 
+      {/* Before / After Comparison Toggle */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+        <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1 shadow-2xl backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => setIsStockPreview(false)}
+            className={clsx(
+              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+              !isStockPreview
+                ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
+                : "text-zinc-400 hover:bg-white/5 hover:text-white",
+            )}
+          >
+            <span>改装方案</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsStockPreview(true)}
+            className={clsx(
+              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+              isStockPreview
+                ? "bg-amber-600 text-white shadow-md shadow-amber-500/25"
+                : "text-zinc-400 hover:bg-white/5 hover:text-white",
+            )}
+          >
+            <span>原厂状态</span>
+            <span className={clsx("text-[10px]", isStockPreview ? "text-amber-200" : "text-zinc-500")}>
+              OEM
+            </span>
+          </button>
+        </div>
+
+        {isStockPreview && (
+          <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-black/80 px-3 py-1.5 text-xs text-amber-300 shadow-xl backdrop-blur-md animate-in fade-in duration-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
+            <span>当前展示出厂原厂状态 (按 C 切回改装)</span>
+          </div>
+        )}
+      </div>
+
       {/* Floating Camera Presets Bar */}
       <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2">
         <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1.5 shadow-2xl backdrop-blur-md">
@@ -764,7 +808,7 @@ export default function CarConfigurator({
 
         <div className="pointer-events-auto hidden items-center gap-2 rounded-xl border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-zinc-400 backdrop-blur-md md:flex">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-          <span>拖拽自由旋转 · 按 1-6 / R 切视角</span>
+          <span>拖拽自由旋转 · 按 1-6/R 切视角 · 按 C 对比原厂</span>
         </div>
       </div>
     </div>

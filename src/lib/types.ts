@@ -82,6 +82,7 @@ export interface VehicleMaterialNames {
   windows?: string;
   wheels: string[];
   wheelNodes?: string[];
+  tires?: string[];
   caliper?: string;
 }
 

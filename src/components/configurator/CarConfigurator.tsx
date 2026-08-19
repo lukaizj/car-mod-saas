@@ -82,8 +82,8 @@ export const CAMERA_PRESETS: CameraPreset[] = [
     shortName: "轮毂",
     shortcut: "5",
     description: "特写前轮毂造型、刹车卡钳及轮胎细节",
-    position: [11.8, 1.8, 8.2],
-    target: [3.4, 0.4, 2.4],
+    position: [13.0, 2.2, 1.8],
+    target: [6.0, 1.58, 4.15],
   },
   {
     id: "top",
@@ -282,6 +282,26 @@ function createWindowMaterial(source: THREE.MeshStandardMaterial) {
   });
 }
 
+function createTireMaterial(source: THREE.MeshStandardMaterial) {
+  return new THREE.MeshStandardMaterial({
+    name: source.name,
+    color: "#18191b",
+    map: source.map,
+    normalMap: source.normalMap,
+    normalScale: source.normalScale?.clone?.() ?? new THREE.Vector2(1, 1),
+    roughness: 0.88,
+    metalness: 0.04,
+    side: source.side,
+  });
+}
+
+function applyTireFinish(material: THREE.MeshStandardMaterial) {
+  material.color.set("#18191b");
+  material.roughness = 0.88;
+  material.metalness = 0.04;
+  material.envMapIntensity = 0.35;
+}
+
 function createWheelMaterial(source: THREE.MeshStandardMaterial) {
   return new THREE.MeshPhysicalMaterial({
     name: source.name,
@@ -462,6 +482,16 @@ function CarModel({
           return liveryMaterial;
         }
 
+        const isTire =
+          vehicle.materialNames.tires?.includes(material.name) &&
+          material instanceof THREE.MeshStandardMaterial;
+
+        if (isTire) {
+          const tireMaterial = createTireMaterial(material);
+          ownedMaterials.push(tireMaterial);
+          return tireMaterial;
+        }
+
         if (isWheel) {
           const wheelMaterial = createWheelMaterial(material);
           ownedMaterials.push(wheelMaterial);
@@ -548,6 +578,14 @@ function CarModel({
           material instanceof THREE.MeshPhysicalMaterial
         ) {
           applyPaintFinish(material, color, paintType);
+          continue;
+        }
+
+        if (
+          vehicle.materialNames.tires?.includes(material.name) &&
+          material instanceof THREE.MeshStandardMaterial
+        ) {
+          applyTireFinish(material);
           continue;
         }
 

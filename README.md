@@ -33,7 +33,7 @@
 
 - **最新版本**：[carmod 0.1.0](https://github.com/lukaizj/car-mod-saas/releases/tag/v0.1.0)
 - **直接下载 DMG**：[carmod-0.1.0-arm64.dmg](https://github.com/lukaizj/car-mod-saas/releases/download/v0.1.0/carmod-0.1.0-arm64.dmg) (~586 MB)
-- **SHA-256 校验和**：`b13c6b53aa8220bc51412a764af8c9ee4dcc6dfd27a552b4da7a43bac18200cf`
+- **SHA-256 校验和**：`bbc442dbd3a59a734635bfa6937c4993a8ad8214ca324001cdc321c1f973c34a`
 - **在线下载页**：访问 `/download` 页面即可下载与查看安装指南
 
 ## 快速开始

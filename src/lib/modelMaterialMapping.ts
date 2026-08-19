@@ -7,8 +7,18 @@ function includesAny(value: string, keywords: string[]) {
 
 function isWheelMaterial(name: string) {
   return (
-    includesAny(name, ["wheel", "rim"]) &&
-    !includesAny(name, ["steering", "steer"])
+    includesAny(name, ["wheel", "rim", "alloy", "mag"]) &&
+    !includesAny(name, [
+      "steering",
+      "steer",
+      "tire",
+      "tyre",
+      "rubber",
+      "disk",
+      "disc",
+      "brake",
+      "caliper",
+    ])
   );
 }
 

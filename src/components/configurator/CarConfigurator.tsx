@@ -246,6 +246,11 @@ function createBodyMaterial(source: THREE.MeshStandardMaterial) {
   return new THREE.MeshPhysicalMaterial({
     name: source.name,
     color: "#ffffff",
+    map: source.map,
+    normalMap: source.normalMap,
+    normalScale: source.normalScale?.clone?.() ?? new THREE.Vector2(1, 1),
+    aoMap: source.aoMap,
+    aoMapIntensity: source.aoMapIntensity ?? 1.0,
     side: source.side,
     transparent: source.transparent,
     opacity: source.opacity,
@@ -253,7 +258,7 @@ function createBodyMaterial(source: THREE.MeshStandardMaterial) {
     depthTest: source.depthTest,
     depthWrite: source.depthWrite,
     vertexColors: source.vertexColors,
-    flatShading: source.flatShading,
+    flatShading: false,
   });
 }
 
@@ -281,12 +286,11 @@ function createWheelMaterial(source: THREE.MeshStandardMaterial) {
   return new THREE.MeshPhysicalMaterial({
     name: source.name,
     color: source.color.clone(),
+    map: source.map,
     normalMap: source.normalMap,
     normalScale: source.normalScale?.clone?.() ?? new THREE.Vector2(1, 1),
     aoMap: source.aoMap,
-    aoMapIntensity: source.aoMapIntensity,
-    metalnessMap: source.metalnessMap,
-    roughnessMap: source.roughnessMap,
+    aoMapIntensity: source.aoMapIntensity ?? 1.0,
     side: source.side,
     transparent: source.transparent,
     opacity: source.opacity,
@@ -295,11 +299,11 @@ function createWheelMaterial(source: THREE.MeshStandardMaterial) {
     depthWrite: source.depthWrite,
     vertexColors: source.vertexColors,
     flatShading: false,
-    metalness: 0.62,
-    roughness: 0.34,
+    metalness: 0.85,
+    roughness: 0.26,
     clearcoat: 0.4,
-    clearcoatRoughness: 0.22,
-    envMapIntensity: 0.55,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 0.85,
   });
 }
 
@@ -309,20 +313,42 @@ function applyPaintFinish(
   paintType: PaintType,
 ) {
   material.color.set(color);
-  material.metalness = paintType === "metallic" ? 0.55 : 0.06;
-  material.roughness =
-    paintType === "matte"
-      ? 0.72
-      : paintType === "wrap"
-        ? 0.48
-        : paintType === "solid"
-          ? 0.28
-          : 0.22;
-  material.clearcoat =
-    paintType === "matte" ? 0.06 : paintType === "wrap" ? 0.22 : 0.55;
-  material.clearcoatRoughness =
-    paintType === "matte" ? 0.7 : paintType === "wrap" ? 0.4 : 0.18;
-  material.envMapIntensity = paintType === "matte" ? 0.45 : 0.7;
+  material.flatShading = false;
+
+  if (paintType === "metallic") {
+    material.metalness = 0.85;
+    material.roughness = 0.16;
+    material.clearcoat = 1.0;
+    material.clearcoatRoughness = 0.08;
+    material.reflectivity = 0.9;
+    material.ior = 1.52;
+    material.envMapIntensity = 1.15;
+  } else if (paintType === "matte") {
+    material.metalness = 0.18;
+    material.roughness = 0.68;
+    material.clearcoat = 0.06;
+    material.clearcoatRoughness = 0.65;
+    material.reflectivity = 0.45;
+    material.ior = 1.45;
+    material.envMapIntensity = 0.65;
+  } else if (paintType === "wrap") {
+    material.metalness = 0.28;
+    material.roughness = 0.42;
+    material.clearcoat = 0.4;
+    material.clearcoatRoughness = 0.22;
+    material.reflectivity = 0.65;
+    material.ior = 1.48;
+    material.envMapIntensity = 0.85;
+  } else {
+    // "solid"
+    material.metalness = 0.08;
+    material.roughness = 0.2;
+    material.clearcoat = 0.95;
+    material.clearcoatRoughness = 0.09;
+    material.reflectivity = 0.8;
+    material.ior = 1.5;
+    material.envMapIntensity = 1.0;
+  }
 }
 
 function applyWindowFinish(material: THREE.MeshPhysicalMaterial) {
@@ -335,21 +361,16 @@ function applyWindowFinish(material: THREE.MeshPhysicalMaterial) {
 }
 
 function applyWheelFinish(
-  material: THREE.MeshStandardMaterial,
+  material: THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial,
   color: string,
 ) {
   material.color.set(color);
-  if (material.metalnessMap || material.roughnessMap) {
-    material.metalnessMap = null;
-    material.roughnessMap = null;
-    material.needsUpdate = true;
-  }
-  material.metalness = 0.62;
-  material.roughness = 0.34;
-  material.envMapIntensity = 0.55;
+  material.metalness = 0.88;
+  material.roughness = 0.24;
+  material.envMapIntensity = 0.85;
   if (material instanceof THREE.MeshPhysicalMaterial) {
-    material.clearcoat = 0.4;
-    material.clearcoatRoughness = 0.22;
+    material.clearcoat = 0.45;
+    material.clearcoatRoughness = 0.15;
   }
 }
 
@@ -462,6 +483,9 @@ function CarModel({
         return clonedMaterial;
       });
 
+      if (!child.geometry.attributes.normal) {
+        child.geometry.computeVertexNormals();
+      }
       child.material = isMaterialArray ? materials : materials[0];
       child.castShadow = true;
       child.receiveShadow = true;
@@ -815,8 +839,12 @@ export default function CarConfigurator({
         camera={{ position: [24, 10, 24], fov: 38, near: 0.1, far: 250 }}
         dpr={[1, 1.5]}
         frameloop="demand"
-        gl={{ powerPreference: "high-performance", preserveDrawingBuffer: true }}
-        shadows="basic"
+        gl={{
+          powerPreference: "high-performance",
+          preserveDrawingBuffer: true,
+          antialias: true,
+        }}
+        shadows={{ type: THREE.PCFSoftShadowMap }}
       >
         <color attach="background" args={[activeEnv.bgColor]} />
         <ambientLight intensity={activeEnv.ambientIntensity} />
@@ -830,6 +858,15 @@ export default function CarConfigurator({
           intensity={activeEnv.dirLight1Intensity}
           color={activeEnv.dirLight1Color}
           castShadow
+          shadow-mapSize={[2048, 2048]}
+          shadow-bias={-0.0001}
+          shadow-normalBias={0.02}
+          shadow-camera-near={1}
+          shadow-camera-far={60}
+          shadow-camera-left={-15}
+          shadow-camera-right={15}
+          shadow-camera-top={15}
+          shadow-camera-bottom={-15}
         />
         <directionalLight
           position={activeEnv.dirLight2Pos}
@@ -873,7 +910,7 @@ export default function CarConfigurator({
             frames={1}
           />
         </Suspense>
-        <Environment resolution={512}>
+        <Environment resolution={1024}>
           <Lightformer
             form="rect"
             intensity={activeEnv.topIntensity}

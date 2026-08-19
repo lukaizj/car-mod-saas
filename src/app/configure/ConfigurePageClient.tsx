@@ -1,41 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo } from "react";
 import CarConfigurator from "@/components/configurator/CarConfigurator";
 import ConfigPanel from "@/components/configurator/ConfigPanel";
 import ConfiguratorActions from "@/components/configurator/ConfiguratorActions";
 import { getVehicle } from "@/lib/catalog";
 import { calculateQuote } from "@/lib/pricing";
 import { useConfigStore } from "@/store/configStore";
-
-const subscribe = () => () => {};
-
-function ModelBootPlaceholder() {
-  return (
-    <div className="flex h-full min-h-[420px] flex-col items-center justify-center gap-5 overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900 to-zinc-950 text-zinc-500">
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 320 120"
-        className="w-64 animate-pulse text-zinc-700"
-        fill="none"
-      >
-        <path
-          d="M32 79 54 47c7-10 17-16 29-18l104-13c25-3 49 5 67 22l30 29c7 7 11 16 11 26H24c0-5 3-10 8-14Z"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <path d="m80 51 118-15 37 31H64l16-16Z" stroke="currentColor" strokeWidth="3" />
-        <circle cx="82" cy="91" r="18" stroke="currentColor" strokeWidth="5" />
-        <circle cx="246" cy="91" r="18" stroke="currentColor" strokeWidth="5" />
-      </svg>
-      <div className="space-y-2 text-center">
-        <p className="text-sm text-zinc-400">正在初始化 3D 引擎</p>
-        <p className="text-xs text-zinc-600">模型资源已提前加载，请稍候…</p>
-      </div>
-    </div>
-  );
-}
 
 export default function ConfigurePageClient() {
   const config = useConfigStore((s) => s.config);
@@ -48,7 +20,6 @@ export default function ConfigurePageClient() {
       ? customVehicle
       : getVehicle(config.vehicleId);
   const quote = useMemo(() => calculateQuote(config), [config]);
-  const isClient = useSyncExternalStore(subscribe, () => true, () => false);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-8">
@@ -80,21 +51,17 @@ export default function ConfigurePageClient() {
 
       <div className="grid flex-1 gap-6 lg:grid-cols-[1fr_340px]">
         <div className="relative h-[58vh] min-h-[420px] max-h-[720px] self-start lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:min-h-[560px] lg:max-h-[760px]">
-          {isClient ? (
-            <CarConfigurator
-              vehicle={vehicle}
-              color={config.paint.color}
-              paintType={config.paint.type}
-              liveryId={config.appearance.liveryId}
-              wheelColor={config.appearance.wheelColor}
-              caliperColor={config.appearance.caliperColor}
-              onMaterialsDiscovered={
-                vehicle.isCustom ? setCustomMaterialCatalog : undefined
-              }
-            />
-          ) : (
-            <ModelBootPlaceholder />
-          )}
+          <CarConfigurator
+            vehicle={vehicle}
+            color={config.paint.color}
+            paintType={config.paint.type}
+            liveryId={config.appearance.liveryId}
+            wheelColor={config.appearance.wheelColor}
+            caliperColor={config.appearance.caliperColor}
+            onMaterialsDiscovered={
+              vehicle.isCustom ? setCustomMaterialCatalog : undefined
+            }
+          />
           <ConfiguratorActions />
         </div>
 

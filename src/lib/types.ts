@@ -92,6 +92,7 @@ export interface VehicleDefinition {
   modelPath: string;
   sourceUrl: string;
   sourceLabel: string;
+  rotation?: [number, number, number];
   capabilities: {
     livery: boolean;
   };

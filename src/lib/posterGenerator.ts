@@ -6,8 +6,9 @@ function drawRoundRect(
   h: number,
   r: number,
 ) {
+  ctx.beginPath();
   if (typeof ctx.roundRect === "function") {
-    drawRoundRect(ctx, x, y, w, h, r);
+    ctx.roundRect(x, y, w, h, r);
     return;
   }
   ctx.beginPath();

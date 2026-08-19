@@ -82,8 +82,8 @@ export const CAMERA_PRESETS: CameraPreset[] = [
     shortName: "轮毂",
     shortcut: "5",
     description: "特写前轮毂造型、刹车卡钳及轮胎细节",
-    position: [12, 2.8, 12],
-    target: [2.8, 0.7, 1.8],
+    position: [11.8, 1.8, 8.2],
+    target: [3.4, 0.4, 2.4],
   },
   {
     id: "top",
@@ -240,7 +240,7 @@ const liveryMaterialStates = new WeakMap<
   THREE.MeshPhysicalMaterial,
   LiveryMaterialState
 >();
-const CUSTOM_MODEL_TARGET_SIZE = 20;
+const VEHICLE_TARGET_SIZE = 20;
 
 function createBodyMaterial(source: THREE.MeshStandardMaterial) {
   return new THREE.MeshPhysicalMaterial({
@@ -316,38 +316,34 @@ function applyPaintFinish(
   material.flatShading = false;
 
   if (paintType === "metallic") {
-    material.metalness = 0.85;
-    material.roughness = 0.16;
+    material.metalness = 0.65;
+    material.roughness = 0.22;
     material.clearcoat = 1.0;
-    material.clearcoatRoughness = 0.08;
-    material.reflectivity = 0.9;
-    material.ior = 1.52;
-    material.envMapIntensity = 1.15;
+    material.clearcoatRoughness = 0.06;
+    material.ior = 1.5;
+    material.envMapIntensity = 0.9;
   } else if (paintType === "matte") {
-    material.metalness = 0.18;
-    material.roughness = 0.68;
-    material.clearcoat = 0.06;
-    material.clearcoatRoughness = 0.65;
-    material.reflectivity = 0.45;
+    material.metalness = 0.1;
+    material.roughness = 0.62;
+    material.clearcoat = 0;
+    material.clearcoatRoughness = 0.7;
     material.ior = 1.45;
-    material.envMapIntensity = 0.65;
+    material.envMapIntensity = 0.45;
   } else if (paintType === "wrap") {
-    material.metalness = 0.28;
-    material.roughness = 0.42;
-    material.clearcoat = 0.4;
-    material.clearcoatRoughness = 0.22;
-    material.reflectivity = 0.65;
+    material.metalness = 0.2;
+    material.roughness = 0.38;
+    material.clearcoat = 0.35;
+    material.clearcoatRoughness = 0.2;
     material.ior = 1.48;
-    material.envMapIntensity = 0.85;
+    material.envMapIntensity = 0.75;
   } else {
     // "solid"
-    material.metalness = 0.08;
-    material.roughness = 0.2;
-    material.clearcoat = 0.95;
-    material.clearcoatRoughness = 0.09;
-    material.reflectivity = 0.8;
+    material.metalness = 0.05;
+    material.roughness = 0.24;
+    material.clearcoat = 0.85;
+    material.clearcoatRoughness = 0.08;
     material.ior = 1.5;
-    material.envMapIntensity = 1.0;
+    material.envMapIntensity = 0.85;
   }
 }
 
@@ -397,13 +393,11 @@ function CarModel({
   const invalidate = useThree((state) => state.invalidate);
 
   const modelScale = useMemo(() => {
-    if (!vehicle.isCustom) return 1;
-
     scene.updateWorldMatrix(true, true);
     const size = new THREE.Box3().setFromObject(scene).getSize(new THREE.Vector3());
     const longestSide = Math.max(size.x, size.y, size.z);
-    return longestSide > 0 ? CUSTOM_MODEL_TARGET_SIZE / longestSide : 1;
-  }, [scene, vehicle.isCustom]);
+    return longestSide > 0 ? VEHICLE_TARGET_SIZE / longestSide : 1;
+  }, [scene]);
 
   const materialNames = useMemo(() => {
     const names = new Set<string>();
@@ -589,7 +583,7 @@ function CarModel({
   ]);
 
   return (
-    <group rotation={[0, Math.PI / 7, 0]}>
+    <group rotation={vehicle.rotation ?? [0, Math.PI / 7, 0]}>
       <group scale={modelScale}>
         <primitive object={cloned.object} />
       </group>
@@ -910,35 +904,35 @@ export default function CarConfigurator({
             frames={1}
           />
         </Suspense>
-        <Environment resolution={1024}>
+        <Environment resolution={512}>
           <Lightformer
-            form="rect"
-            intensity={activeEnv.topIntensity}
-            position={[0, 14, 0]}
+            form="ring"
+            intensity={activeEnv.topIntensity * 0.85}
+            position={[0, 16, 0]}
             rotation-x={Math.PI / 2}
-            scale={[20, 14]}
+            scale={[24, 24]}
           />
           <Lightformer
             form="ring"
-            intensity={activeEnv.ringIntensity}
-            position={[0, 6, 0]}
-            scale={14}
+            intensity={activeEnv.ringIntensity * 0.6}
+            position={[0, 8, 0]}
+            scale={16}
           />
           <Lightformer
-            form="rect"
+            form="circle"
             color={activeEnv.side1Color}
-            intensity={activeEnv.side1Intensity}
-            position={[-12, 3, 4]}
+            intensity={activeEnv.side1Intensity * 0.75}
+            position={[-14, 5, 6]}
             rotation-y={Math.PI / 2}
-            scale={[10, 8]}
+            scale={[12, 12]}
           />
           <Lightformer
-            form="rect"
+            form="circle"
             color={activeEnv.side2Color}
-            intensity={activeEnv.side2Intensity}
-            position={[12, 3, -4]}
+            intensity={activeEnv.side2Intensity * 0.75}
+            position={[14, 5, -6]}
             rotation-y={-Math.PI / 2}
-            scale={[10, 8]}
+            scale={[12, 12]}
           />
         </Environment>
       </Canvas>

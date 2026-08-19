@@ -20,7 +20,7 @@ export const VEHICLES: VehicleDefinition[] = [
       bodyPaintNodes: ["Object_24", "Object_30"],
       livery: "Mesheslivery1Mtl",
       windows: "Mesheswindows1Mtl",
-      wheels: ["Meshesm8rim1Mtl"],
+      wheels: ["Meshesm8rim1Mtl", "Meshesm8rim0011Mtl"],
       caliper: "Caliper1Mtl",
     },
   },
@@ -52,6 +52,7 @@ export const VEHICLES: VehicleDefinition[] = [
     modelPath: "/models/tesla-model3.web.glb",
     sourceUrl: "https://github.com/varrff/Model3ThreeJsExpo",
     sourceLabel: "3D 模型 · CC BY 4.0",
+    rotation: [0, (8 * Math.PI) / 7, 0],
     capabilities: { livery: false },
     materialNames: {
       bodyPaint: ["primary.003", "primary.005", "primary.006", "primary.007"],

@@ -80,6 +80,7 @@ export interface VehicleMaterialNames {
   bodyPaintNodes?: string[];
   livery?: string;
   windows?: string;
+  lights?: Record<string, { color: string; intensity: number }>;
   wheels: string[];
   wheelNodes?: string[];
   tires?: string[];

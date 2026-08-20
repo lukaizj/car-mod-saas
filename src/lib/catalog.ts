@@ -35,6 +35,12 @@ export const VEHICLES: VehicleDefinition[] = [
     materialNames: {
       bodyPaint: ["CARI_PAINT"],
       windows: "Glass",
+      lights: {
+        Front_DRL: { color: "#f4fbff", intensity: 2.2 },
+        Small_Red_lamp_replaced: { color: "#ff2118", intensity: 1.2 },
+        Rear_LIght_clear: { color: "#ff3028", intensity: 0.7 },
+        Rear_main_emission: { color: "#ff2118", intensity: 1.8 },
+      },
       wheels: ["RIM_BRIGHT"],
       wheelNodes: [
         "Object_296",

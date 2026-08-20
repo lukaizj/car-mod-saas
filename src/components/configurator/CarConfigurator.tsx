@@ -327,6 +327,17 @@ function createWheelMaterial(source: THREE.MeshStandardMaterial) {
   });
 }
 
+function applyLightFinish(
+  material: THREE.MeshStandardMaterial,
+  color: string,
+  intensity: number,
+) {
+  material.emissive.set(color);
+  material.emissiveIntensity = intensity;
+  material.toneMapped = false;
+  material.needsUpdate = true;
+}
+
 function applyPaintFinish(
   material: THREE.MeshPhysicalMaterial,
   color: string,
@@ -511,8 +522,11 @@ function CarModel({
         child.geometry.computeVertexNormals();
       }
       child.material = isMaterialArray ? materials : materials[0];
-      child.castShadow = true;
-      child.receiveShadow = true;
+      const isLight = materials.some((material) =>
+        Boolean(vehicle.materialNames.lights?.[material.name]),
+      );
+      child.castShadow = !isLight;
+      child.receiveShadow = !isLight;
     });
 
     return { object, ownedMaterials };
@@ -535,6 +549,12 @@ function CarModel({
         : [child.material];
 
       for (const material of materials) {
+        const light = vehicle.materialNames.lights?.[material.name];
+        if (light && material instanceof THREE.MeshStandardMaterial) {
+          applyLightFinish(material, light.color, light.intensity);
+          continue;
+        }
+
         if (
           vehicle.materialNames.windows === material.name &&
           material instanceof THREE.MeshPhysicalMaterial

@@ -80,6 +80,7 @@ export interface VehicleMaterialNames {
   bodyPaintNodes?: string[];
   livery?: string;
   windows?: string;
+  lights?: Record<string, { color: string; intensity: number }>;
   wheels: string[];
   wheelNodes?: string[];
   tires?: string[];
@@ -105,13 +106,4 @@ export interface CustomVehicleDefinition extends VehicleDefinition {
   fileName: string;
   fileSize: number;
   availableMaterials: string[];
-}
-
-export interface ShopInfo {
-  id: string;
-  slug: string;
-  name: string;
-  address: string;
-  phone: string;
-  openHours: string;
 }

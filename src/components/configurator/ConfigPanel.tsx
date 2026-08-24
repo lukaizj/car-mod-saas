@@ -1,6 +1,5 @@
 "use client";
 
-import clsx from "clsx";
 import CustomModelUpload from "./CustomModelUpload";
 import {
   BODYKITS,
@@ -14,7 +13,6 @@ import {
   WHEELS,
   WHEEL_COLORS,
 } from "@/lib/catalog";
-import { soundEffects } from "@/lib/soundEffects";
 import { useConfigStore } from "@/store/configStore";
 
 function Section({
@@ -53,12 +51,11 @@ function ColorSwatches({
           aria-label={color.name}
           aria-pressed={selected === color.hex}
           onClick={() => onSelect(color.id)}
-          className={clsx(
-            "aspect-square rounded-xl border-2 transition-transform hover:scale-105",
+          className={`aspect-square rounded-xl border-2 transition-transform hover:scale-105 ${
             selected === color.hex
               ? "border-white ring-2 ring-white/30"
-              : "border-transparent",
-          )}
+              : "border-transparent"
+          }`}
           style={{ backgroundColor: color.hex }}
         />
       ))}
@@ -84,12 +81,11 @@ function OptionButtons({
           key={opt.id}
           type="button"
           onClick={() => onSelect(opt.id)}
-          className={clsx(
-            "w-full rounded-xl border px-4 py-3 text-left transition-colors",
+          className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
             selected === opt.id
               ? "border-blue-500 bg-blue-500/10"
-              : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
-          )}
+              : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500"
+          }`}
         >
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 font-medium text-sm">
@@ -116,53 +112,16 @@ function OptionButtons({
 export default function ConfigPanel() {
   const {
     config,
-    setVehicle: rawSetVehicle,
-    setPaintColor: rawSetPaintColor,
-    setCoverage: rawSetCoverage,
-    setLivery: rawSetLivery,
-    setWheelColor: rawSetWheelColor,
-    setCaliperColor: rawSetCaliperColor,
-    setWheels: rawSetWheels,
-    setSpoiler: rawSetSpoiler,
-    setBodykit: rawSetBodykit,
+    setVehicle,
+    setPaintColor,
+    setCoverage,
+    setLivery,
+    setWheelColor,
+    setCaliperColor,
+    setWheels,
+    setSpoiler,
+    setBodykit,
   } = useConfigStore();
-
-  const setVehicle = (id: string) => {
-    soundEffects.playPartSnap();
-    rawSetVehicle(id);
-  };
-  const setPaintColor = (id: string) => {
-    soundEffects.playPaintSpray();
-    rawSetPaintColor(id);
-  };
-  const setCoverage = (id: (typeof COVERAGE_OPTIONS)[number]["id"]) => {
-    soundEffects.playPartSnap();
-    rawSetCoverage(id);
-  };
-  const setLivery = (id: string) => {
-    soundEffects.playPaintSpray();
-    rawSetLivery(id);
-  };
-  const setWheelColor = (id: string) => {
-    soundEffects.playPaintSpray();
-    rawSetWheelColor(id);
-  };
-  const setCaliperColor = (id: string) => {
-    soundEffects.playPaintSpray();
-    rawSetCaliperColor(id);
-  };
-  const setWheels = (id: string) => {
-    soundEffects.playPartSnap();
-    rawSetWheels(id);
-  };
-  const setSpoiler = (id: string) => {
-    soundEffects.playPartSnap();
-    rawSetSpoiler(id);
-  };
-  const setBodykit = (id: string) => {
-    soundEffects.playPartSnap();
-    rawSetBodykit(id);
-  };
   const coverage = COVERAGE_OPTIONS.find(
     (option) => option.id === config.paint.coverage,
   );
@@ -181,12 +140,11 @@ export default function ConfigPanel() {
               key={option.id}
               type="button"
               onClick={() => setVehicle(option.id)}
-              className={clsx(
-                "rounded-xl border px-3 py-3 text-left transition-colors",
+              className={`rounded-xl border px-3 py-3 text-left transition-colors ${
                 config.vehicleId === option.id
                   ? "border-blue-500 bg-blue-500/10"
-                  : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
-              )}
+                  : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500"
+              }`}
             >
               <span className="block text-sm font-medium">{option.name}</span>
             </button>
@@ -195,12 +153,11 @@ export default function ConfigPanel() {
             <button
               type="button"
               onClick={() => setVehicle(customVehicle.id)}
-              className={clsx(
-                "rounded-xl border px-3 py-3 text-left transition-colors",
+              className={`rounded-xl border px-3 py-3 text-left transition-colors ${
                 config.vehicleId === customVehicle.id
                   ? "border-blue-500 bg-blue-500/10"
-                  : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
-              )}
+                  : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500"
+              }`}
             >
               <span className="block text-sm font-medium">
                 {customVehicle.name}
@@ -230,12 +187,11 @@ export default function ConfigPanel() {
               key={c.id}
               type="button"
               onClick={() => setCoverage(c.id)}
-              className={clsx(
-                "flex-1 rounded-lg border py-2 text-xs font-medium",
+              className={`flex-1 rounded-lg border py-2 text-xs font-medium ${
                 config.paint.coverage === c.id
                   ? "border-blue-500 bg-blue-500/10"
-                  : "border-zinc-700 hover:border-zinc-500",
-              )}
+                  : "border-zinc-700 hover:border-zinc-500"
+              }`}
             >
               {c.name}
             </button>
@@ -256,12 +212,11 @@ export default function ConfigPanel() {
                 key={livery.id}
                 type="button"
                 onClick={() => setLivery(livery.id)}
-                className={clsx(
-                  "rounded-xl border px-3 py-3 text-left transition-colors",
+                className={`rounded-xl border px-3 py-3 text-left transition-colors ${
                   config.appearance.liveryId === livery.id
                     ? "border-blue-500 bg-blue-500/10"
-                    : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500",
-                )}
+                    : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-500"
+                }`}
               >
                 <span className="block text-sm font-medium">{livery.name}</span>
                 <span className="mt-1 block text-xs leading-relaxed text-zinc-500">

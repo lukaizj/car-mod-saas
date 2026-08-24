@@ -8,7 +8,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
@@ -24,9 +23,7 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import clsx from "clsx";
 import { LIVERIES } from "@/lib/catalog";
-import { soundEffects } from "@/lib/soundEffects";
 import type { PaintType, VehicleDefinition } from "@/lib/types";
 
 export interface CameraPreset {
@@ -802,11 +799,6 @@ export default function CarConfigurator({
   const [targetRequest, setTargetRequest] = useState<CameraTargetRequest | null>(null);
   const [isStockPreview, setIsStockPreview] = useState<boolean>(false);
   const [activeEnvId, setActiveEnvId] = useState<string>("studio");
-  const isMuted = useSyncExternalStore(
-    (cb) => soundEffects.subscribe(cb),
-    () => soundEffects.isMuted(),
-    () => false,
-  );
 
   const activeEnv = useMemo(() => {
     return (
@@ -816,23 +808,16 @@ export default function CarConfigurator({
   }, [activeEnvId]);
 
   const handleSelectPreset = useCallback((id: string) => {
-    soundEffects.playCameraSwoosh();
     setActivePresetId(id);
     setTargetRequest({ presetId: id, requestId: Date.now() });
   }, []);
 
   const handleSelectEnv = useCallback((id: string) => {
-    soundEffects.playToggleClick();
     setActiveEnvId(id);
   }, []);
 
   const handleToggleComparison = useCallback((stock: boolean) => {
-    soundEffects.playToggleClick();
     setIsStockPreview(stock);
-  }, []);
-
-  const handleToggleMute = useCallback(() => {
-    soundEffects.toggleMuted();
   }, []);
 
   const handleUserInteraction = useCallback(() => {
@@ -872,15 +857,12 @@ export default function CarConfigurator({
         const currentIndex = ENVIRONMENT_PRESETS.findIndex((env) => env.id === activeEnvId);
         const nextEnv = ENVIRONMENT_PRESETS[(currentIndex + 1) % ENVIRONMENT_PRESETS.length];
         if (nextEnv) handleSelectEnv(nextEnv.id);
-      } else if (e.key.toLowerCase() === "m") {
-        e.preventDefault();
-        handleToggleMute();
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeEnvId, handleSelectEnv, handleSelectPreset, handleToggleComparison, handleToggleMute, isStockPreview]);
+  }, [activeEnvId, handleSelectEnv, handleSelectPreset, handleToggleComparison, isStockPreview]);
 
   return (
     <div
@@ -1001,27 +983,25 @@ export default function CarConfigurator({
           <button
             type="button"
             onClick={() => handleToggleComparison(false)}
-            className={clsx(
-              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               !isStockPreview
                 ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
-                : "text-zinc-400 hover:bg-white/5 hover:text-white",
-            )}
+                : "text-zinc-400 hover:bg-white/5 hover:text-white"
+            }`}
           >
             <span>改装方案</span>
           </button>
           <button
             type="button"
             onClick={() => handleToggleComparison(true)}
-            className={clsx(
-              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               isStockPreview
                 ? "bg-amber-600 text-white shadow-md shadow-amber-500/25"
-                : "text-zinc-400 hover:bg-white/5 hover:text-white",
-            )}
+                : "text-zinc-400 hover:bg-white/5 hover:text-white"
+            }`}
           >
             <span>原厂状态</span>
-            <span className={clsx("text-[10px]", isStockPreview ? "text-amber-200" : "text-zinc-500")}>
+            <span className={`text-[10px] ${isStockPreview ? "text-amber-200" : "text-zinc-500"}`}>
               OEM
             </span>
           </button>
@@ -1035,7 +1015,7 @@ export default function CarConfigurator({
         )}
       </div>
 
-      {/* Floating Bottom Controls HUD: Camera Presets + Environment Lighting + Mute */} 
+      {/* Floating Bottom Controls HUD: Camera Presets + Environment Lighting */}
       <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2">
         {/* Left: Camera Presets */} 
         <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1.5 shadow-2xl backdrop-blur-md">
@@ -1050,19 +1030,17 @@ export default function CarConfigurator({
                 type="button"
                 onClick={() => handleSelectPreset(preset.id)}
                 title={preset.name + " (按键 " + preset.shortcut + ") · " + preset.description}
-                className={clsx(
-                  "flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
+                className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
                   isActive
                     ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
-                    : "text-zinc-300 hover:bg-white/10 hover:text-white",
-                )}
+                    : "text-zinc-300 hover:bg-white/10 hover:text-white"
+                }`}
               >
                 <span>{preset.shortName}</span>
                 <span
-                  className={clsx(
-                    "hidden text-[10px] sm:inline-block",
-                    isActive ? "text-blue-200" : "text-zinc-500",
-                  )}
+                  className={`hidden text-[10px] sm:inline-block ${
+                    isActive ? "text-blue-200" : "text-zinc-500"
+                  }`}
                 >
                   {preset.shortcut}
                 </span>
@@ -1071,7 +1049,7 @@ export default function CarConfigurator({
           })}
         </div>
 
-        {/* Right: Environment Lighting & Sound Toggle */} 
+        {/* Right: Environment Lighting */}
         <div className="pointer-events-auto flex items-center gap-2">
           {/* Environment Presets */} 
           <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1.5 shadow-2xl backdrop-blur-md">
@@ -1086,12 +1064,11 @@ export default function CarConfigurator({
                   type="button"
                   onClick={() => handleSelectEnv(env.id)}
                   title={env.name + " · " + env.description}
-                  className={clsx(
-                    "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
+                  className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
                     isEnvActive
                       ? "bg-zinc-100 text-zinc-950 font-semibold shadow-md"
-                      : "text-zinc-300 hover:bg-white/10 hover:text-white",
-                  )}
+                      : "text-zinc-300 hover:bg-white/10 hover:text-white"
+                  }`}
                 >
                   {env.shortName}
                 </button>
@@ -1099,27 +1076,6 @@ export default function CarConfigurator({
             })}
           </div>
 
-          {/* Mute Audio Toggle */} 
-          <button
-            type="button"
-            onClick={handleToggleMute}
-            title={isMuted ? "取消静音 (按键 M)" : "静音 (按键 M)"}
-            className={clsx(
-              "flex items-center justify-center rounded-xl border border-white/10 bg-black/75 p-2.5 shadow-2xl backdrop-blur-md transition",
-              isMuted ? "text-zinc-500 hover:text-zinc-300" : "text-blue-400 hover:text-blue-300",
-            )}
-          >
-            {isMuted ? (
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-              </svg>
-            ) : (
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-              </svg>
-            )}
-          </button>
         </div>
       </div>
     </div>

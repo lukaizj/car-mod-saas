@@ -97,7 +97,6 @@ async function createWindow() {
     icon: path.join(app.getAppPath(), "assets", "carmod.png"),
     backgroundColor: "#09090b",
     webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

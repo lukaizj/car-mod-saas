@@ -107,12 +107,3 @@ export interface CustomVehicleDefinition extends VehicleDefinition {
   fileSize: number;
   availableMaterials: string[];
 }
-
-export interface ShopInfo {
-  id: string;
-  slug: string;
-  name: string;
-  address: string;
-  phone: string;
-  openHours: string;
-}

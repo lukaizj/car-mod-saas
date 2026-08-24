@@ -15,7 +15,6 @@ import {
   WHEEL_COLORS,
 } from "@/lib/catalog";
 import { calculateQuote } from "@/lib/pricing";
-import { soundEffects } from "@/lib/soundEffects";
 import { useConfigStore } from "@/store/configStore";
 
 interface SharedConfig {
@@ -208,7 +207,6 @@ export default function ConfiguratorActions() {
   }, [config, customVehicle]);
 
   async function shareConfig() {
-    soundEffects.playToggleClick();
     if (customVehicle?.id === config.vehicleId) {
       showNotice("本地上传模型无法通过链接分享");
       return;
@@ -224,7 +222,6 @@ export default function ConfiguratorActions() {
   }
 
   function downloadSnapshot() {
-    soundEffects.playCameraShutter();
     const canvas = document.querySelector<HTMLCanvasElement>(
       "#car-configurator canvas",
     );
@@ -258,7 +255,6 @@ export default function ConfiguratorActions() {
         <button
           type="button"
           onClick={() => {
-            soundEffects.playCameraShutter();
             setIsPosterOpen(true);
           }}
           className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-900/40 transition hover:bg-blue-500 hover:shadow-blue-600/30"

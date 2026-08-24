@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import clsx from "clsx";
 import type { CustomVehicleDefinition } from "@/lib/types";
 import { useConfigStore } from "@/store/configStore";
 
@@ -263,12 +262,11 @@ export default function CustomModelUpload() {
             <button
               type="button"
               onClick={() => setVehicle(customVehicle.id)}
-              className={clsx(
-                "rounded-lg px-2.5 py-1.5 text-xs font-medium",
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium ${
                 config.vehicleId === customVehicle.id
                   ? "bg-blue-600 text-white"
-                  : "border border-zinc-700 text-zinc-300 hover:border-zinc-500",
-              )}
+                  : "border border-zinc-700 text-zinc-300 hover:border-zinc-500"
+              }`}
             >
               {config.vehicleId === customVehicle.id ? "预览中" : "使用"}
             </button>
